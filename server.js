@@ -9,7 +9,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // Allow all origins for cross-origin requests
         methods: ["GET", "POST"]
     }
 });
@@ -50,21 +50,21 @@ io.on('connection', (socket) => {
     // Handle joining with a name after entering the room
     socket.on('joinRoomWithName', ({ roomCode, username }) => {
         console.log(`User ${socket.id} is setting their name to ${username} in room ${roomCode}`);
-    
+
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: [] };
         }
-    
+
         // Find the player by ID and update their name
         const player = rooms[roomCode].players.find(player => player.id === socket.id);
         if (player) {
             player.name = username;
             console.log(`Updated player ${socket.id} with name: ${username}`);
         }
-    
+
         // Log the current players in the room
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
-    
+
         // Broadcast updated player list to everyone in the room
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
     });
@@ -89,6 +89,6 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(port, () => {
+server.listen(port, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${port}`);
 });
