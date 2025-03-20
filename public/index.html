@@ -3,16 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ONE NIGHT ULTIMATE WEREWOLF</title>
+    <title>One Night Ultimate Werewolf</title>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: #2c2c2c;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
+        }
+        input, button {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            border: none;
+        }
+        input {
+            width: 80%;
+            background: #3c3c3c;
+            color: #ffffff;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
 </head>
 <body>
-    <h1>ONE NIGHT ULTIMATE WEREWOLF BY SAMANTHA</h1>
-    <p id="status">Waiting for server connection...</p>
-
-    <input type="text" id="messageInput" placeholder="Type a message">
-    <button id="sendMessage">Send</button>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
-    <script src="/client.js"></script>
+    <div class="container">
+        <h1>One Night Ultimate Werewolf</h1>
+        <p>Enter a room code to join or create a new game:</p>
+        <input type="text" id="roomCode" placeholder="Room Code">
+        <button id="joinRoom">Join Room</button>
+        <div id="lobby" style="display: none;">
+            <h2>Lobby</h2>
+            <p>Room Code: <span id="roomDisplay"></span></p>
+            <h3>Players:</h3>
+            <ul id="playerList"></ul>
+            <button id="gameSettings">Game Settings</button>
+            <button id="startGame" disabled>Start Game</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById("joinRoom").addEventListener("click", function() {
+            const roomCode = document.getElementById("roomCode").value.trim();
+            if (roomCode) {
+                document.getElementById("roomDisplay").textContent = roomCode;
+                document.getElementById("lobby").style.display = "block";
+            }
+        });
+    </script>
 </body>
 </html>
