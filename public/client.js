@@ -1,4 +1,4 @@
-const socket = io('http://localhost:3000');
+const socket = io(window.location.hostname === "localhost" ? 'http://localhost:3000' : 'https://your-render-url.onrender.com');
 let currentRoom = null;
 
 document.addEventListener("DOMContentLoaded", () => {
