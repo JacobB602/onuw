@@ -30,11 +30,11 @@ document.getElementById("joinRoom").addEventListener("click", function() {
 // Update room UI when players or roles change
 socket.on('roomUpdate', (players, roles) => {
     console.log("Received room update:", players, roles);
-    
+
     const playerList = document.getElementById("playerList");
     playerList.innerHTML = "";
-    
-    // Update the player list
+
+    // Update player list with names and assigned roles
     players.forEach(player => {
         const listItem = document.createElement("li");
         listItem.textContent = player.name || "Unnamed";
@@ -48,20 +48,23 @@ socket.on('roomUpdate', (players, roles) => {
         playerList.appendChild(listItem);
     });
 
-    // ✅ Fix: Update role selection UI for all players
+    // ✅ Corrected Role Highlighting Logic
     document.querySelectorAll('.role').forEach(roleElement => {
         const roleName = roleElement.getAttribute('data-role');
 
-        // Check if this role is selected in the roles object
-        const isSelected = Object.values(roles).includes(roleName);
+        // Check if this specific role is selected in the roles object
+        const isSelected = Object.values(roles).some(selectedRole => selectedRole === roleName);
 
         if (isSelected) {
             roleElement.classList.add('selected'); // Highlight role
+            
             // Assign correct colors based on role type
             if (['werewolf', 'minion', 'squire'].includes(roleName)) {
                 roleElement.classList.add('evil');
+                roleElement.classList.remove('neutral');
             } else if (['tanner', 'executioner', 'apprentice-tanner'].includes(roleName)) {
                 roleElement.classList.add('neutral');
+                roleElement.classList.remove('evil');
             } else {
                 roleElement.classList.remove('evil', 'neutral'); // Default "good" roles
             }
@@ -70,7 +73,6 @@ socket.on('roomUpdate', (players, roles) => {
         }
     });
 });
-
 
 // Handle clicking on the "Roles" button
 document.getElementById("roles").addEventListener("click", () => {
