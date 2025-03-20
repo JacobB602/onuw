@@ -234,65 +234,42 @@
             }
 
             document.getElementById("startGame").disabled = false;
-        });
-
-        document.getElementById("saveSettings").addEventListener("click", function() {
-            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-            socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-            document.getElementById("settingsPopup").style.display = "none";
-        });
-
-        document.getElementById("closePopup").addEventListener("click", function() {
-            document.getElementById("settingsPopup").style.display = "none";
-        });
-
-        // Role selection behavior
-        document.querySelectorAll(".role").forEach(function(role) {
-            role.addEventListener("click", function() {
-                role.classList.toggle("selected");
-
-                if (role.classList.contains("selected")) {
-                    // Highlight roles based on type
-                    if (
-                        role.dataset.role === "werewolf" ||
-                        role.dataset.role === "minion" ||
-                        role.dataset.role === "squire" ||
-                        role.dataset.role === "alpha-wolf" ||
-                        role.dataset.role === "mystic-wolf" ||
-                        role.dataset.role === "dream-wolf"
-                    ) {
-                        role.classList.add("evil");
-                        role.classList.remove("good", "neutral"); // Remove any previous color
-                    } else if (
-                        role.dataset.role === "tanner" ||
-                        role.dataset.role === "apprentice-tanner" ||
-                        role.dataset.role === "executioner"
-                    ) {
-                        role.classList.add("neutral");
-                        role.classList.remove("evil", "good"); // Remove any previous color
-                    } else if (
-                        role.dataset.role === "villager" ||
-                        role.dataset.role === "seer" ||
-                        role.dataset.role === "apprentice-seer" ||
-                        role.dataset.role === "troublemaker" ||
-                        role.dataset.role === "gremlin" ||
-                        role.dataset.role === "paranormal-investigator" ||
-                        role.dataset.role === "robber" ||
-                        role.dataset.role === "witch" ||
-                        role.dataset.role === "drunk" ||
-                        role.dataset.role === "insomniac"
-                    ) {
-                        role.classList.add("good");
-                        role.classList.remove("evil", "neutral"); // Remove any previous color
-                    }
+            document.getElementById("startGame").onclick = function () {
+                if (playerCount >= rolesRequired) {
+                    socket.emit('startGame', { roomCode: currentRoom });
                 } else {
-                    role.classList.remove("evil", "good", "neutral"); // Clear all colors when unselected
+                    alert("Please select at least " + rolesRequired + " roles before starting the game.");
                 }
+            };
+        });
+
+        // Handle role selection
+        document.querySelectorAll('.role').forEach(roleButton => {
+            roleButton.addEventListener('click', function () {
+                roleButton.classList.toggle('selected');
+                updateRoleCount();
             });
         });
 
-        socket.on("startGame", function() {
-            alert("The game is starting now!");
+        function updateRoleCount() {
+            const selectedRoles = document.querySelectorAll('.role.selected').length;
+            const rolesRequired = playerCount + 3;
+            document.getElementById('rolesRequiredText').textContent = `Roles to be selected: ${rolesRequired - selectedRoles}`;
+        }
+
+        // Handle saving the settings and closing the popup
+        document.getElementById('saveSettings').addEventListener('click', function () {
+            const selectedRoles = [];
+            document.querySelectorAll('.role.selected').forEach(roleButton => {
+                selectedRoles.push(roleButton.dataset.role);
+            });
+
+            socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
+            document.getElementById('settingsPopup').style.display = 'none';
+        });
+
+        document.getElementById('closePopup').addEventListener('click', function () {
+            document.getElementById('settingsPopup').style.display = 'none';
         });
     </script>
 </body>
