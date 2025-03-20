@@ -29,44 +29,48 @@ document.getElementById("joinRoom").addEventListener("click", function() {
 
 // Update room UI when players or roles change
 socket.on('roomUpdate', (players, roles) => {
-    console.log("Room update received:", players, roles);
+    console.log("Received room update:", players, roles);
     
     const playerList = document.getElementById("playerList");
-    playerList.innerHTML = "";  
-
-    // Identify if the current user is the host
-    isHost = players.length > 0 && players[0].id === socket.id;
-
-    // Update the button text based on host status
-    const rolesButton = document.getElementById("roles");
-    rolesButton.textContent = isHost ? "Role Settings" : "View Roles";
-
+    playerList.innerHTML = "";
+    
+    // Update the player list
     players.forEach(player => {
         const listItem = document.createElement("li");
-        listItem.textContent = player.name || 'Unnamed Player';
+        listItem.textContent = player.name || "Unnamed";
 
-        // Display role selection for host only
-        if (isHost) {
-            const roleSelect = document.createElement("select");
-            roleSelect.innerHTML = `
-                <option value="">Select Role</option>
-                <option value="Villager">Villager</option>
-                <option value="Werewolf">Werewolf</option>
-                <option value="Seer">Seer</option>
-            `;
-            roleSelect.value = roles[player.id] || "";
-            roleSelect.addEventListener("change", () => {
-                socket.emit('setRole', { roomCode: currentRoom, role: roleSelect.value, playerId: player.id });
-            });
-            listItem.appendChild(roleSelect);
-        } else {
-            // Non-hosts only see assigned roles, but can't change them
-            listItem.textContent += ` - Role: ${roles[player.id] || "Not Assigned"}`;
+        // Add role to the player list item
+        const role = roles[player.id];  // Get the player's role
+        if (role) {
+            listItem.textContent += ` - ${role}`;  // Append the role to the name
         }
 
         playerList.appendChild(listItem);
     });
+
+    // ✅ Fix: Update role selection UI for all players
+    document.querySelectorAll('.role').forEach(roleElement => {
+        const roleName = roleElement.getAttribute('data-role');
+
+        // Check if this role is selected in the roles object
+        const isSelected = Object.values(roles).includes(roleName);
+
+        if (isSelected) {
+            roleElement.classList.add('selected'); // Highlight role
+            // Assign correct colors based on role type
+            if (['werewolf', 'minion', 'squire'].includes(roleName)) {
+                roleElement.classList.add('evil');
+            } else if (['tanner', 'executioner', 'apprentice-tanner'].includes(roleName)) {
+                roleElement.classList.add('neutral');
+            } else {
+                roleElement.classList.remove('evil', 'neutral'); // Default "good" roles
+            }
+        } else {
+            roleElement.classList.remove('selected', 'evil', 'neutral'); // Remove highlights
+        }
+    });
 });
+
 
 // Handle clicking on the "Roles" button
 document.getElementById("roles").addEventListener("click", () => {
