@@ -232,16 +232,21 @@
         document.getElementById("closePopup").addEventListener("click", function() {
             document.getElementById("settingsPopup").style.display = "none";
         });
+
+        let selectedRoles = {}; // To store the selected roles by the host
     
         document.querySelectorAll(".role").forEach(role => {
             role.addEventListener("click", function() {
                 if (!isHost) {
-                    // Non-hosts cannot select or toggle roles
+                    // Non-hosts cannot select roles
                     return;
                 }
                 
                 // Toggle the 'selected' class for host only
                 this.classList.toggle("selected");
+
+                // Store the role selection (just an example, could be more complex)
+                selectedRoles[this.dataset.role] = this.classList.contains("selected");
 
                 // Remove existing color classes
                 this.classList.remove("evil", "good", "neutral");
@@ -261,15 +266,24 @@
                     this.classList.add("neutral");
                 }
             });
+        });
 
-            // Always display the roles with the appropriate color for non-hosts
+        document.querySelectorAll(".role").forEach(role => {
+            const roleType = role.dataset.role;
+            
             if (!isHost) {
-                const roleType = role.dataset.role;
+                // Non-hosts can only view the roles but not interact with them
+                
+                // Check if the role is selected by the host
+                if (selectedRoles[roleType]) {
+                    role.classList.add("selected");
+                }
+
+                // Apply color class based on the role for non-hosts
                 const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
                 const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
                 const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-                
-                // Apply color class based on the role for non-host users
+
                 if (evilRoles.includes(roleType)) {
                     role.classList.add("evil");
                 } else if (goodRoles.includes(roleType)) {
@@ -279,6 +293,7 @@
                 }
             }
         });
+
     
         document.getElementById("saveSettings").addEventListener("click", function() {
             const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
