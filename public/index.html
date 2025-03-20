@@ -208,12 +208,19 @@
             // Check if this player is the host
             isHost = players[0].id === socket.id;
             
-            // Update the roles button text based on the host status
+            // Non-host should be able to view roles, but only the host can edit them
             const rolesButton = document.getElementById("roles");
             if (isHost) {
                 rolesButton.textContent = "Edit Roles"; // Host can edit roles
+                rolesButton.onclick = function () {
+                    // Show the role selection popup when the host clicks "Edit Roles"
+                    document.getElementById("settingsPopup").style.display = "flex";
+                };
             } else {
                 rolesButton.textContent = "View Roles"; // Non-hosts can only view roles
+                rolesButton.onclick = function () {
+                    alert("You are not the host and cannot edit roles.");
+                };
             }
         });
     
@@ -232,22 +239,24 @@
                     // Non-hosts cannot select roles
                     return;
                 }
+
                 this.classList.toggle("selected");
-    
+
                 // Remove existing color classes
                 this.classList.remove("evil", "good", "neutral");
-    
+
                 // Define role categories
                 const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
                 const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
                 const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-    
-                // Apply the appropriate color class
-                if (evilRoles.includes(this.dataset.role)) {
+
+                // Apply the appropriate color class based on the role dataset
+                const roleType = this.dataset.role;
+                if (evilRoles.includes(roleType)) {
                     this.classList.add("evil");
-                } else if (goodRoles.includes(this.dataset.role)) {
+                } else if (goodRoles.includes(roleType)) {
                     this.classList.add("good");
-                } else if (neutralRoles.includes(this.dataset.role)) {
+                } else if (neutralRoles.includes(roleType)) {
                     this.classList.add("neutral");
                 }
             });
