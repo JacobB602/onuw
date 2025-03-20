@@ -84,16 +84,19 @@
             cursor: pointer;
             width: 100px; /* Default width */
         }
-        .role.selected {
-            background: #4854f7; /* Default for good roles */
+        .evil {
+            background-color: rgb(236, 16, 16);
+            color: white;
         }
 
-        .role.selected.evil {
-            background: #f74848; /* Red for evil roles */
+        .neutral {
+            background-color: orange;
+            color: white;
         }
 
-        .role.selected.neutral {
-            background: #f7ab48; /* Yellow for neutral roles */
+        .good {
+            background-color: rgb(0, 89, 255);
+            color: white;
         }
         .role.single-option {
             width: 372px; /* Width for roles with a single option, equal to both Werewolf boxes combined */
@@ -125,6 +128,7 @@
     <div class="popup-background" id="settingsPopup">
         <div class="popup">
             <h2>Roles</h2>
+            <div id="rolesRequiredText">Roles to be selected: 0</div>
             <div class="role-selection">
                 <div class="role-group2">
                     <div class="role" data-role="werewolf">Werewolf</div>
@@ -163,7 +167,8 @@
         const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
         let currentRoom = null;
         let isHost = false; // Variable to track if the player is the host
-    
+        let playerCount = 0; // Variable to store the number of players in the room
+
         document.getElementById("joinRoom").addEventListener("click", function() {
             const roomCode = document.getElementById("roomCode").value.trim();
             if (!roomCode) {
@@ -176,9 +181,14 @@
             document.getElementById("roomDisplay").textContent = roomCode;
             document.getElementById("lobby").style.display = "block";
         });
-    
+
         socket.on('roomUpdate', (players, roles) => {
             console.log("Received room update:", players, roles);
+
+            // Update player count and adjust the role requirements
+            playerCount = players.length;
+            const rolesRequired = playerCount + 3; // 3 more than the player count
+            document.getElementById("rolesRequiredText").textContent = `Roles to be selected: ${rolesRequired}`;
             
             const playerList = document.getElementById("playerList");
             playerList.innerHTML = "";
@@ -222,111 +232,67 @@
                     alert("You are not the host and cannot edit roles.");
                 };
             }
+
+            document.getElementById("startGame").disabled = false;
         });
-    
-        document.getElementById("roles").addEventListener("click", function() {
-            // Allow non-hosts to view roles, but not edit them
-            document.getElementById("settingsPopup").style.display = "flex";
+
+        document.getElementById("saveSettings").addEventListener("click", function() {
+            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+            socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
+            document.getElementById("settingsPopup").style.display = "none";
         });
-    
+
         document.getElementById("closePopup").addEventListener("click", function() {
             document.getElementById("settingsPopup").style.display = "none";
         });
 
-        let selectedRoles = {}; // To store the selected roles by the host
-    
-        document.querySelectorAll(".role").forEach(role => {
+        // Role selection behavior
+        document.querySelectorAll(".role").forEach(function(role) {
             role.addEventListener("click", function() {
-                if (!isHost) {
-                    // Non-hosts cannot select roles
-                    return;
-                }
-                
-                // Toggle the 'selected' class for host only
-                this.classList.toggle("selected");
+                role.classList.toggle("selected");
 
-                // Store the role selection (just an example, could be more complex)
-                selectedRoles[this.dataset.role] = this.classList.contains("selected");
-
-                // Remove existing color classes
-                this.classList.remove("evil", "good", "neutral");
-
-                // Define role categories
-                const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
-                const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
-                const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-
-                // Apply the appropriate color class based on the role dataset
-                const roleType = this.dataset.role;
-                if (evilRoles.includes(roleType)) {
-                    this.classList.add("evil");
-                } else if (goodRoles.includes(roleType)) {
-                    this.classList.add("good");
-                } else if (neutralRoles.includes(roleType)) {
-                    this.classList.add("neutral");
-                }
-            });
-        });
-
-        document.querySelectorAll(".role").forEach(role => {
-            const roleType = role.dataset.role;
-            
-            if (!isHost) {
-                // Non-hosts can only view the roles but not interact with them
-                
-                // Check if the role is selected by the host
-                if (selectedRoles[roleType]) {
-                    role.classList.add("selected");
-                }
-
-                // Apply color class based on the role for non-hosts
-                const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
-                const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
-                const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-
-                if (evilRoles.includes(roleType)) {
-                    role.classList.add("evil");
-                } else if (goodRoles.includes(roleType)) {
-                    role.classList.add("good");
-                } else if (neutralRoles.includes(roleType)) {
-                    role.classList.add("neutral");
-                }
-            }
-        });
-
-    
-        document.getElementById("saveSettings").addEventListener("click", function() {
-            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-            socket.emit("updateGameSettings", { roomCode: currentRoom, settings: { roles: selectedRoles } });
-            alert("Settings saved!");
-            document.getElementById("settingsPopup").style.display = "none";
-        });
-    
-        // Listen for updates from the host and update the role selections
-        socket.on("updateRoles", (roles) => {
-            // Update the displayed roles for all players
-            const roleElements = document.querySelectorAll(".role");
-            roleElements.forEach(role => {
-                if (roles.includes(role.dataset.role)) {
-                    role.classList.add("selected");
-
-                    // Apply the appropriate color class
-                    const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
-                    const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
-                    const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-
-                    // Apply the appropriate color class
-                    if (evilRoles.includes(role.dataset.role)) {
+                if (role.classList.contains("selected")) {
+                    // Highlight roles based on type
+                    if (
+                        role.dataset.role === "werewolf" ||
+                        role.dataset.role === "minion" ||
+                        role.dataset.role === "squire" ||
+                        role.dataset.role === "alpha-wolf" ||
+                        role.dataset.role === "mystic-wolf" ||
+                        role.dataset.role === "dream-wolf"
+                    ) {
                         role.classList.add("evil");
-                    } else if (goodRoles.includes(role.dataset.role)) {
-                        role.classList.add("good");
-                    } else if (neutralRoles.includes(role.dataset.role)) {
+                        role.classList.remove("good", "neutral"); // Remove any previous color
+                    } else if (
+                        role.dataset.role === "tanner" ||
+                        role.dataset.role === "apprentice-tanner" ||
+                        role.dataset.role === "executioner"
+                    ) {
                         role.classList.add("neutral");
+                        role.classList.remove("evil", "good"); // Remove any previous color
+                    } else if (
+                        role.dataset.role === "villager" ||
+                        role.dataset.role === "seer" ||
+                        role.dataset.role === "apprentice-seer" ||
+                        role.dataset.role === "troublemaker" ||
+                        role.dataset.role === "gremlin" ||
+                        role.dataset.role === "paranormal-investigator" ||
+                        role.dataset.role === "robber" ||
+                        role.dataset.role === "witch" ||
+                        role.dataset.role === "drunk" ||
+                        role.dataset.role === "insomniac"
+                    ) {
+                        role.classList.add("good");
+                        role.classList.remove("evil", "neutral"); // Remove any previous color
                     }
                 } else {
-                    role.classList.remove("selected", "evil", "good", "neutral");
+                    role.classList.remove("evil", "good", "neutral"); // Clear all colors when unselected
                 }
             });
+        });
+
+        socket.on("startGame", function() {
+            alert("The game is starting now!");
         });
     </script>
 </body>
