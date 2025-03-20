@@ -117,7 +117,7 @@
             <p>Room Code: <span id="roomDisplay"></span></p>
             <h3>Players:</h3>
             <ul id="playerList"></ul>
-            <button id="roles">Roles</button>
+            <button id="roles">Loading...</button>
             <button id="startGame" disabled>Start Game</button>
         </div>
     </div>
@@ -162,6 +162,7 @@
     <script>
         const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
         let currentRoom = null;
+        let isHost = false; // Variable to track if the player is the host
 
         document.getElementById("joinRoom").addEventListener("click", function() {
             const roomCode = document.getElementById("roomCode").value.trim();
@@ -192,9 +193,25 @@
                     socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
                 }
             }
+
+            // Check if this player is the host
+            isHost = players[0].id === socket.id;
+
+            // Update the roles button text based on the host status
+            const rolesButton = document.getElementById("roles");
+            if (isHost) {
+                rolesButton.textContent = "Edit Roles"; // Host can edit roles
+            } else {
+                rolesButton.textContent = "View Roles"; // Non-hosts can only view roles
+            }
         });
 
         document.getElementById("roles").addEventListener("click", function() {
+            // Non-hosts can't edit roles
+            if (!isHost) {
+                alert("You are not the host. You cannot edit roles.");
+                return;
+            }
             document.getElementById("settingsPopup").style.display = "flex";
         });
 
@@ -204,6 +221,10 @@
 
         document.querySelectorAll(".role").forEach(role => {
             role.addEventListener("click", function() {
+                if (!isHost) {
+                    // Non-hosts cannot select roles
+                    return;
+                }
                 this.classList.toggle("selected");
 
                 // Remove existing color classes

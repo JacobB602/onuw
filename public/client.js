@@ -71,7 +71,7 @@ socket.on('roomUpdate', (players, roles) => {
 // Handle clicking on the "Roles" button
 document.getElementById("roles").addEventListener("click", () => {
     const settingsPopup = document.getElementById("settingsPopup");
-    
+
     if (isHost) {
         settingsPopup.style.display = "flex"; // Host can modify roles
     } else {
