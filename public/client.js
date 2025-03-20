@@ -2,6 +2,7 @@ const socket = io(window.location.hostname === "localhost" ? 'http://localhost:1
 
 let currentRoom = null;
 let currentUsername = null;
+let isHost = false;
 
 document.getElementById("joinRoom").addEventListener("click", function() {
     const roomCode = document.getElementById("roomCode").value.trim();
@@ -17,30 +18,48 @@ document.getElementById("joinRoom").addEventListener("click", function() {
     document.getElementById("roomDisplay").textContent = roomCode;
     document.getElementById("lobby").style.display = "block";
 
-    // Log when room is joined
-    console.log(`Room code entered: ${roomCode}`);
-    
-    // Ask the user for their name after joining the room
     setTimeout(() => {
-        console.log("Asking for username...");
         const username = prompt("Please enter your name:");
         if (username) {
             currentUsername = username;
-            console.log(`User entered name: ${username}`); // Debug log
             socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
-        } else {
-            console.log('User did not enter a name.');
         }
-    }, 500); // Delay to ensure the room join is processed
+    }, 500);
 });
 
-socket.on('roomUpdate', (players) => {
-    console.log("Received room update:", players);
+// Update room UI when players or roles change
+socket.on('roomUpdate', (players, roles) => {
+    console.log("Room update received:", players, roles);
+    
     const playerList = document.getElementById("playerList");
-    playerList.innerHTML = "";  // Clear existing list
+    playerList.innerHTML = "";  
+
+    // Identify if the current user is the host
+    isHost = players.length > 0 && players[0].id === socket.id;
+
     players.forEach(player => {
         const listItem = document.createElement("li");
-        listItem.textContent = player.name || 'Unnamed Player';  // Add player's name
+        listItem.textContent = player.name || 'Unnamed Player';
+
+        // Display role selection for host only
+        if (isHost) {
+            const roleSelect = document.createElement("select");
+            roleSelect.innerHTML = `
+                <option value="">Select Role</option>
+                <option value="Villager">Villager</option>
+                <option value="Werewolf">Werewolf</option>
+                <option value="Seer">Seer</option>
+            `;
+            roleSelect.value = roles[player.id] || "";
+            roleSelect.addEventListener("change", () => {
+                socket.emit('setRole', { roomCode: currentRoom, role: roleSelect.value, playerId: player.id });
+            });
+            listItem.appendChild(roleSelect);
+        } else {
+            // Non-hosts only see assigned roles, but can't change them
+            listItem.textContent += ` - Role: ${roles[player.id] || "Not Assigned"}`;
+        }
+
         playerList.appendChild(listItem);
     });
 });

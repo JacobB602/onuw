@@ -9,7 +9,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow all origins for cross-origin requests
+        origin: "*",
         methods: ["GET", "POST"]
     }
 });
@@ -25,65 +25,79 @@ const rooms = {}; // Stores active rooms
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // Handle joining a room with only the room code
+    // Handle joining a room
     socket.on('joinRoom', ({ roomCode }) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
 
         if (!rooms[roomCode]) {
-            rooms[roomCode] = { players: [] };
+            rooms[roomCode] = { players: [], roles: {} };
         }
 
-        // Join the room without a name yet
+        // Join the room
         socket.join(roomCode);
         console.log(`User ${socket.id} joined room: ${roomCode}`);
 
-        // Add player by ID (name will be added later)
+        // Add player to the room
         rooms[roomCode].players.push({ id: socket.id });
 
         // Log the current players in the room
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
 
-        // Broadcast updated player list to everyone in the room
-        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
+        // Notify all players of room updates
+        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 
-    // Handle joining with a name after entering the room
+    // Handle setting username
     socket.on('joinRoomWithName', ({ roomCode, username }) => {
         console.log(`User ${socket.id} is setting their name to ${username} in room ${roomCode}`);
 
-        if (!rooms[roomCode]) {
-            rooms[roomCode] = { players: [] };
-        }
+        if (!rooms[roomCode]) return;
 
-        // Find the player by ID and update their name
+        // Assign username
         const player = rooms[roomCode].players.find(player => player.id === socket.id);
         if (player) {
             player.name = username;
-            console.log(`Updated player ${socket.id} with name: ${username}`);
         }
 
-        // Log the current players in the room
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
 
-        // Broadcast updated player list to everyone in the room
-        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
+        // Notify all players of updates
+        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 
+    // Handle role selection (Only Host Can Change Roles)
+    socket.on('setRole', ({ roomCode, role, playerId }) => {
+        if (!rooms[roomCode]) return;
+
+        // First player in list is the host
+        const hostId = rooms[roomCode].players[0]?.id;
+
+        if (socket.id !== hostId) {
+            console.log(`User ${socket.id} tried to change roles but is not the host.`);
+            return;
+        }
+
+        // Assign role
+        rooms[roomCode].roles[playerId] = role;
+
+        console.log(`Role updated for ${playerId} to ${role} by host ${socket.id}`);
+
+        // Notify all players about role updates
+        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
+    });
+
+    // Handle disconnects
     socket.on('disconnect', () => {
         console.log(`User ${socket.id} disconnected`);
+
         for (const roomCode in rooms) {
-            const prevLength = rooms[roomCode].players.length;
             rooms[roomCode].players = rooms[roomCode].players.filter(player => player.id !== socket.id);
-
-            // Log the updated player list after a disconnection
-            console.log(`Updated players in room ${roomCode} after disconnection:`, rooms[roomCode].players);
-
-            // Notify remaining players in the room
-            io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
 
             if (rooms[roomCode].players.length === 0) {
                 delete rooms[roomCode];
-                console.log(`Room ${roomCode} deleted (was empty).`);
+                console.log(`Room ${roomCode} deleted (empty).`);
+            } else {
+                io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
             }
         }
     });
