@@ -37,6 +37,10 @@ socket.on('roomUpdate', (players, roles) => {
     // Identify if the current user is the host
     isHost = players.length > 0 && players[0].id === socket.id;
 
+    // Update the button text based on host status
+    const rolesButton = document.getElementById("roles");
+    rolesButton.textContent = isHost ? "Role Settings" : "View Roles";
+
     players.forEach(player => {
         const listItem = document.createElement("li");
         listItem.textContent = player.name || 'Unnamed Player';
@@ -62,4 +66,15 @@ socket.on('roomUpdate', (players, roles) => {
 
         playerList.appendChild(listItem);
     });
+});
+
+// Handle clicking on the "Roles" button
+document.getElementById("roles").addEventListener("click", () => {
+    const settingsPopup = document.getElementById("settingsPopup");
+    
+    if (isHost) {
+        settingsPopup.style.display = "flex"; // Host can modify roles
+    } else {
+        alert("You can only view roles. The host manages them.");
+    }
 });
