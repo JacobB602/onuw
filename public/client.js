@@ -1,4 +1,4 @@
-const socket = io(window.location.hostname === "localhost" ? 'http://localhost:3000' : 'https://onuw.onrender.com');
+const socket = io(window.location.hostname === "localhost" ? 'http://localhost:3000' : `https://${window.location.hostname}:${process.env.PORT || 10000}`);
 
 let currentRoom = null;
 let currentUsername = null;
