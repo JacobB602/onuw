@@ -1,4 +1,4 @@
-const socket = io();
+const socket = io('http://localhost:3000');
 let currentRoom = null;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -9,14 +9,22 @@ document.addEventListener("DOMContentLoaded", () => {
         if (roomCode && username) {
             currentRoom = roomCode;
             socket.emit('joinRoom', roomCode, username);
+            document.getElementById("roomDisplay").innerText = `Room Code: ${roomCode}`;
         }
     });
 
     socket.on('roomUpdate', (players) => {
         const playerList = document.getElementById("playerList");
-        playerList.innerHTML = `<h3>Players in room: ${currentRoom}</h3>`;
-        players.forEach(player => {
-            playerList.innerHTML += `<p>${player.name}</p>`;
-        });
+        playerList.innerHTML = `<h3>Players in Room:</h3>`;
+        
+        if (players.length === 0) {
+            playerList.innerHTML += "<p>No players in the room.</p>";
+        } else {
+            players.forEach(player => {
+                playerList.innerHTML += `<p>${player.name}</p>`;
+            });
+        }
+
+        console.log("Updated player list:", players);
     });
 });

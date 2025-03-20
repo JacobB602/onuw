@@ -40,14 +40,21 @@
         button:hover {
             background: #45a049;
         }
+        ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
     </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>One Night Ultimate Werewolf</h1>
-        <p>Enter a room code to join or create a new game:</p>
+        <p>Enter a room code to join:</p>
+        
         <input type="text" id="roomCode" placeholder="Room Code">
         <button id="joinRoom">Join Room</button>
+
         <div id="lobby" style="display: none;">
             <h2>Lobby</h2>
             <p>Room Code: <span id="roomDisplay"></span></p>
@@ -57,12 +64,45 @@
             <button id="startGame" disabled>Start Game</button>
         </div>
     </div>
+
     <script>
+        const socket = io('http://localhost:3000');
+        let currentRoom = null;
+
         document.getElementById("joinRoom").addEventListener("click", function() {
             const roomCode = document.getElementById("roomCode").value.trim();
-            if (roomCode) {
-                document.getElementById("roomDisplay").textContent = roomCode;
-                document.getElementById("lobby").style.display = "block";
+
+            if (!roomCode) {
+                alert("Please enter a room code!");
+                return;
+            }
+
+            currentRoom = roomCode;
+            socket.emit('joinRoom', { roomCode });
+
+            document.getElementById("roomDisplay").textContent = roomCode;
+            document.getElementById("lobby").style.display = "block";
+        });
+
+        // Ask for the player's name after they join the room
+        socket.on('roomUpdate', (players) => {
+            console.log("Received room update:", players);
+
+            const playerList = document.getElementById("playerList");
+            playerList.innerHTML = "";  // Clear existing list
+
+            players.forEach(player => {
+                const listItem = document.createElement("li");
+                listItem.textContent = player.name || "Unnamed";  // Add player's name or "Unnamed" if not set
+                playerList.appendChild(listItem);
+            });
+
+            // Prompt for the player's name if they haven't set it yet
+            if (!players.some(player => player.id === socket.id && player.name)) {
+                const username = prompt("Please enter your name:");
+                if (username) {
+                    socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
+                }
             }
         });
     </script>

@@ -20,40 +20,72 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-const rooms = {}; // Store rooms and connected players
+const rooms = {}; // Stores active rooms
 
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    socket.on('joinRoom', (roomCode, username) => {
+    // Handle joining a room with only the room code
+    socket.on('joinRoom', ({ roomCode }) => {
+        console.log(`User ${socket.id} is trying to join room ${roomCode}`);
+
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: [] };
         }
 
-        // Check if the player is already in the room
-        if (!rooms[roomCode].players.some(player => player.id === socket.id)) {
-            rooms[roomCode].players.push({ id: socket.id, name: username });
-        }
-
+        // Join the room without a name yet
         socket.join(roomCode);
-        console.log(`${username} joined room: ${roomCode}`);
+        console.log(`User ${socket.id} joined room: ${roomCode}`);
 
-        // Notify all clients in the room
+        // Add player by ID (name will be added later)
+        rooms[roomCode].players.push({ id: socket.id });
+
+        // Log the current players in the room
+        console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
+
+        // Broadcast updated player list to everyone in the room
+        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
+    });
+
+    // Handle joining with a name after entering the room
+    socket.on('joinRoomWithName', ({ roomCode, username }) => {
+        console.log(`User ${socket.id} is setting their name to ${username} in room ${roomCode}`);
+    
+        if (!rooms[roomCode]) {
+            rooms[roomCode] = { players: [] };
+        }
+    
+        // Find the player by ID and update their name
+        const player = rooms[roomCode].players.find(player => player.id === socket.id);
+        if (player) {
+            player.name = username;
+            console.log(`Updated player ${socket.id} with name: ${username}`);
+        }
+    
+        // Log the current players in the room
+        console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
+    
+        // Broadcast updated player list to everyone in the room
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
     });
 
     socket.on('disconnect', () => {
+        console.log(`User ${socket.id} disconnected`);
         for (const roomCode in rooms) {
+            const prevLength = rooms[roomCode].players.length;
             rooms[roomCode].players = rooms[roomCode].players.filter(player => player.id !== socket.id);
+
+            // Log the updated player list after a disconnection
+            console.log(`Updated players in room ${roomCode} after disconnection:`, rooms[roomCode].players);
+
+            // Notify remaining players in the room
             io.to(roomCode).emit('roomUpdate', rooms[roomCode].players);
 
-            // If room is empty, delete it
             if (rooms[roomCode].players.length === 0) {
                 delete rooms[roomCode];
+                console.log(`Room ${roomCode} deleted (was empty).`);
             }
         }
-
-        console.log(`User disconnected: ${socket.id}`);
     });
 });
 
