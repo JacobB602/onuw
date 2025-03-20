@@ -1,9 +1,8 @@
-const socket = io('http://localhost:3000', {
-    transports: ['websocket', 'polling']
-});
+const socket = io();
 
 socket.on('connect', () => {
     console.log("Connected to server with ID:", socket.id);
+    document.getElementById("status").innerText = "Connected to server!";
 });
 
 socket.on('serverToClient', (data) => {
@@ -12,11 +11,18 @@ socket.on('serverToClient', (data) => {
 });
 
 document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("sendMessage").addEventListener("click", () => {
-        const message = document.getElementById("messageInput").value;
-        if (message.trim()) {
-            socket.emit('clientToServer', message);
-            document.getElementById("messageInput").value = "";
-        }
-    });
+    const sendMessageButton = document.getElementById("sendMessage");
+    const messageInput = document.getElementById("messageInput");
+
+    if (sendMessageButton && messageInput) {
+        sendMessageButton.addEventListener("click", () => {
+            const message = messageInput.value.trim();
+            if (message) {
+                socket.emit('clientToServer', message);
+                messageInput.value = "";
+            }
+        });
+    } else {
+        console.error("sendMessage or messageInput element not found.");
+    }
 });
