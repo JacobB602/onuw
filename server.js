@@ -72,17 +72,18 @@ io.on('connection', (socket) => {
         // First player in list is the host
         const hostId = rooms[roomCode].players[0]?.id;
 
+        // Check if the current user is the host
         if (socket.id !== hostId) {
             console.log(`User ${socket.id} tried to change roles but is not the host.`);
             return;
         }
 
-        // Assign role
+        // Assign role to the player
         rooms[roomCode].roles[playerId] = role;
 
         console.log(`Role updated for ${playerId} to ${role} by host ${socket.id}`);
 
-        // Notify all players about role updates
+        // Notify all players in the room about role updates
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 

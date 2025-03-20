@@ -177,26 +177,37 @@
             document.getElementById("lobby").style.display = "block";
         });
     
-        socket.on('roomUpdate', (players) => {
-            console.log("Received room update:", players);
+        socket.on('roomUpdate', (players, roles) => {
+            console.log("Received room update:", players, roles);
+            
             const playerList = document.getElementById("playerList");
             playerList.innerHTML = "";
+            
+            // Update the player list
             players.forEach(player => {
                 const listItem = document.createElement("li");
                 listItem.textContent = player.name || "Unnamed";
+
+                // Add role to the player list item
+                const role = roles[player.id];  // Get the player's role
+                if (role) {
+                    listItem.textContent += ` - ${role}`;  // Append the role to the name
+                }
+
                 playerList.appendChild(listItem);
             });
-    
+            
+            // Handle player name assignment if necessary
             if (!players.some(player => player.id === socket.id && player.name)) {
                 const username = prompt("Please enter your name:");
                 if (username) {
                     socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
                 }
             }
-    
+            
             // Check if this player is the host
             isHost = players[0].id === socket.id;
-    
+            
             // Update the roles button text based on the host status
             const rolesButton = document.getElementById("roles");
             if (isHost) {
@@ -250,28 +261,28 @@
         });
     
         // Listen for updates from the host and update the role selections
-        socket.on('updateRoles', (roles) => {
-            // Update the roles UI dynamically for all players
-            document.querySelectorAll('.role').forEach(roleElement => {
-                const role = roleElement.dataset.role;
-                if (roles.includes(role)) {
-                    roleElement.classList.add("selected");
-                    roleElement.classList.remove("evil", "good", "neutral");
-    
+        socket.on("updateRoles", (roles) => {
+            // Update the displayed roles for all players
+            const roleElements = document.querySelectorAll(".role");
+            roleElements.forEach(role => {
+                if (roles.includes(role.dataset.role)) {
+                    role.classList.add("selected");
+
                     // Apply the appropriate color class
                     const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
                     const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
                     const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
-    
-                    if (evilRoles.includes(role)) {
-                        roleElement.classList.add("evil");
-                    } else if (goodRoles.includes(role)) {
-                        roleElement.classList.add("good");
-                    } else if (neutralRoles.includes(role)) {
-                        roleElement.classList.add("neutral");
+
+                    // Apply the appropriate color class
+                    if (evilRoles.includes(role.dataset.role)) {
+                        role.classList.add("evil");
+                    } else if (goodRoles.includes(role.dataset.role)) {
+                        role.classList.add("good");
+                    } else if (neutralRoles.includes(role.dataset.role)) {
+                        role.classList.add("neutral");
                     }
                 } else {
-                    roleElement.classList.remove("selected", "evil", "good", "neutral");
+                    role.classList.remove("selected", "evil", "good", "neutral");
                 }
             });
         });
