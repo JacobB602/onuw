@@ -1,28 +1,22 @@
 const socket = io();
-
-socket.on('connect', () => {
-    console.log("Connected to server with ID:", socket.id);
-    document.getElementById("status").innerText = "Connected to server!";
-});
-
-socket.on('serverToClient', (data) => {
-    console.log("Message from server:", data);
-    alert("Server says: " + data);
-});
+let currentRoom = null;
 
 document.addEventListener("DOMContentLoaded", () => {
-    const sendMessageButton = document.getElementById("sendMessage");
-    const messageInput = document.getElementById("messageInput");
+    document.getElementById("joinRoomBtn").addEventListener("click", () => {
+        const roomCode = document.getElementById("roomCode").value.trim();
+        const username = document.getElementById("username").value.trim();
 
-    if (sendMessageButton && messageInput) {
-        sendMessageButton.addEventListener("click", () => {
-            const message = messageInput.value.trim();
-            if (message) {
-                socket.emit('clientToServer', message);
-                messageInput.value = "";
-            }
+        if (roomCode && username) {
+            currentRoom = roomCode;
+            socket.emit('joinRoom', roomCode, username);
+        }
+    });
+
+    socket.on('roomUpdate', (players) => {
+        const playerList = document.getElementById("playerList");
+        playerList.innerHTML = `<h3>Players in room: ${currentRoom}</h3>`;
+        players.forEach(player => {
+            playerList.innerHTML += `<p>${player.name}</p>`;
         });
-    } else {
-        console.error("sendMessage or messageInput element not found.");
-    }
+    });
 });
