@@ -75,6 +75,16 @@ document.getElementById("roles").addEventListener("click", () => {
     if (isHost) {
         settingsPopup.style.display = "flex"; // Host can modify roles
     } else {
-        alert("You can only view roles. The host manages them.");
+        // For non-hosts, show the available roles in a simple popup
+        const availableRoles = Object.keys(roles).map(role => {
+            return `<div>${role}: ${roles[role] ? "Enabled" : "Disabled"}</div>`;
+        }).join("");
+
+        // Display the roles that the host has enabled (not assigned yet)
+        const rolesListPopup = document.getElementById("rolesListPopup");
+        rolesListPopup.innerHTML = `<strong>Available Roles:</strong><br>${availableRoles}`;
+        rolesListPopup.style.display = "block";  // Show the popup
     }
 });
+
+
