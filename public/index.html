@@ -236,10 +236,11 @@
         document.querySelectorAll(".role").forEach(role => {
             role.addEventListener("click", function() {
                 if (!isHost) {
-                    // Non-hosts cannot select roles
+                    // Non-hosts cannot select or toggle roles
                     return;
                 }
-
+                
+                // Toggle the 'selected' class for host only
                 this.classList.toggle("selected");
 
                 // Remove existing color classes
@@ -260,6 +261,23 @@
                     this.classList.add("neutral");
                 }
             });
+
+            // Always display the roles with the appropriate color for non-hosts
+            if (!isHost) {
+                const roleType = role.dataset.role;
+                const evilRoles = ["werewolf", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire"];
+                const goodRoles = ["villager", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"];
+                const neutralRoles = ["tanner", "apprentice-tanner", "executioner"];
+                
+                // Apply color class based on the role for non-host users
+                if (evilRoles.includes(roleType)) {
+                    role.classList.add("evil");
+                } else if (goodRoles.includes(roleType)) {
+                    role.classList.add("good");
+                } else if (neutralRoles.includes(roleType)) {
+                    role.classList.add("neutral");
+                }
+            }
         });
     
         document.getElementById("saveSettings").addEventListener("click", function() {
