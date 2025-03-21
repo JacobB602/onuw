@@ -70,49 +70,44 @@ socket.on('roomUpdate', (players, roles) => {
 
 // Function to update the roles UI
 function updateRolesUI(roles) {
-    document.querySelectorAll('.role').forEach(roleElement => {
-        const roleName = roleElement.getAttribute('data-role');
+    document.querySelectorAll(".role").forEach(roleElement => {
+        roleElement.addEventListener("click", function () {
+            if (!isHost) return; // Only the host can select roles
 
-        // Check if this role is selected
-        const isSelected = Object.values(roles).includes(roleName);
+            const roleName = this.getAttribute("data-role");
 
-        // Highlight the role if selected
-        if (isSelected) {
-            roleElement.classList.add('selected');
-
-            // Assign colors based on role type
-            if (
-                roleName === "werewolf" ||
-                roleName === "minion" ||
-                roleName === "squire" ||
-                roleName === "alpha-wolf" ||
-                roleName === "mystic-wolf" ||
-                roleName === "dream-wolf"
-            ) {
-                roleElement.classList.add('evil');
-                roleElement.classList.remove('good', 'neutral');
-            } else if (
-                roleName === "tanner" ||
-                roleName === "apprentice-tanner" ||
-                roleName === "executioner"
-            ) {
-                roleElement.classList.add('neutral');
-                roleElement.classList.remove('evil', 'good');
+            // Toggle selection
+            if (this.classList.contains("selected")) {
+                this.classList.remove("selected", "evil", "good", "neutral");
             } else {
-                roleElement.classList.add('good');
-                roleElement.classList.remove('evil', 'neutral');
-            }
-        } else {
-            roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
-        }
+                this.classList.add("selected");
 
-        // Disable role selection for non-hosts
-        if (!isHost) {
-            roleElement.classList.add('disabled');
-        } else {
-            roleElement.classList.remove('disabled');
-        }
-    });
+                // Assign colors based on role type
+                if (
+                    roleName === "werewolf" ||
+                    roleName === "minion" ||
+                    roleName === "squire" ||
+                    roleName === "alpha-wolf" ||
+                    roleName === "mystic-wolf" ||
+                    roleName === "dream-wolf"
+                ) {
+                    this.classList.add("evil");
+                } else if (
+                    roleName === "tanner" ||
+                    roleName === "apprentice-tanner" ||
+                    roleName === "executioner"
+                ) {
+                    this.classList.add("neutral");
+                } else {
+                    this.classList.add("good");
+                }
+            }
+
+            // Send live update to server
+            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+            socket.emit("updateRoles", { roomCode: currentRoom, roles: selectedRoles });
+        });
+    });  
 }
 
 // Handle clicking on the "Roles" button
@@ -127,55 +122,9 @@ document.getElementById("roles").addEventListener("click", () => {
 });
 
 // Handle saving role settings
-document.getElementById("saveSettings").addEventListener("click", function() {
-    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-    document.getElementById("settingsPopup").style.display = "none";
-});
+document.getElementById("saveSettings").style.display = "none";
 
 // Handle closing the popup
 document.getElementById("closePopup").addEventListener("click", function() {
     document.getElementById("settingsPopup").style.display = "none";
-});
-
-// Role selection behavior (only for host)
-document.querySelectorAll(".role").forEach(function(role) {
-    role.addEventListener("click", function() {
-        if (!isHost) return; // Only the host can select roles
-
-        role.classList.toggle("selected");
-
-        // Get the updated list of selected roles
-        const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-
-        // Emit the updated roles to the server IMMEDIATELY
-        socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-
-        // Highlight roles based on type
-        if (role.classList.contains("selected")) {
-            if (
-                role.dataset.role === "werewolf" ||
-                role.dataset.role === "minion" ||
-                role.dataset.role === "squire" ||
-                role.dataset.role === "alpha-wolf" ||
-                role.dataset.role === "mystic-wolf" ||
-                role.dataset.role === "dream-wolf"
-            ) {
-                role.classList.add("evil");
-                role.classList.remove("good", "neutral");
-            } else if (
-                role.dataset.role === "tanner" ||
-                role.dataset.role === "apprentice-tanner" ||
-                role.dataset.role === "executioner"
-            ) {
-                role.classList.add("neutral");
-                role.classList.remove("evil", "good");
-            } else {
-                role.classList.add("good");
-                role.classList.remove("evil", "neutral");
-            }
-        } else {
-            role.classList.remove("evil", "good", "neutral");
-        }
-    });
 });
