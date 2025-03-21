@@ -126,13 +126,6 @@ document.getElementById("roles").addEventListener("click", () => {
     }
 });
 
-// Handle saving role settings
-document.getElementById("saveSettings").addEventListener("click", function() {
-    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-    document.getElementById("settingsPopup").style.display = "none";
-});
-
 // Handle closing the popup
 document.getElementById("closePopup").addEventListener("click", function() {
     document.getElementById("settingsPopup").style.display = "none";

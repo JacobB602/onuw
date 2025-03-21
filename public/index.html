@@ -135,8 +135,8 @@
             <div id="rolesRequiredText">Roles to be selected: 0</div>
             <div class="role-selection">
                 <div class="role-group2">
-                    <div class="role" data-role="werewolf">Werewolf</div>
-                    <div class="role" data-role="werewolf">Werewolf</div>
+                    <div class="role" data-role="werewolf-1">Werewolf</div>
+                    <div class="role" data-role="werewolf-2">Werewolf</div>
                 </div>
                 <div class="role single-option" data-role="alpha-wolf">Alpha Wolf</div>
                 <div class="role single-option" data-role="mystic-wolf">Mystic Wolf</div>
@@ -147,9 +147,9 @@
                 <div class="role single-option" data-role="apprentice-tanner">Apprentice Tanner</div>
                 <div class="role single-option" data-role="executioner">Executioner</div>
                 <div class="role-group3">
-                    <div class="role" data-role="villager">Villager</div>
-                    <div class="role" data-role="villager">Villager</div>
-                    <div class="role" data-role="villager">Villager</div>
+                    <div class="role" data-role="villager-1">Villager</div>
+                    <div class="role" data-role="villager-2">Villager</div>
+                    <div class="role" data-role="villager-3">Villager</div>
                 </div>
                 <div class="role single-option" data-role="seer">Seer</div>
                 <div class="role single-option" data-role="apprentice-seer">Apprentice Seer</div>
@@ -162,7 +162,6 @@
                 <div class="role single-option" data-role="insomniac">Insomniac</div>
             </div>
             <br>
-            <button id="saveSettings">Save Settings</button>
             <button id="closePopup">Close</button>
         </div>
     </div>
@@ -256,7 +255,8 @@
 
                     // Assign colors based on role type
                     if (
-                        roleName === "werewolf" ||
+                        roleName === "werewolf-1" ||
+                        roleName === "werewolf-2" ||
                         roleName === "minion" ||
                         roleName === "squire" ||
                         roleName === "alpha-wolf" ||
@@ -288,12 +288,6 @@
                 }
             });
         }
-
-        document.getElementById("saveSettings").addEventListener("click", function() {
-            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-            socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-            document.getElementById("settingsPopup").style.display = "none";
-        });
 
         document.getElementById("closePopup").addEventListener("click", function() {
             document.getElementById("settingsPopup").style.display = "none";
