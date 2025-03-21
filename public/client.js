@@ -18,13 +18,12 @@ document.getElementById("joinRoom").addEventListener("click", function() {
     document.getElementById("roomDisplay").textContent = roomCode;
     document.getElementById("lobby").style.display = "block";
 
-    setTimeout(() => {
-        const username = prompt("Please enter your name:");
-        if (username) {
-            currentUsername = username;
-            socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
-        }
-    }, 500);
+    // Prompt for the username immediately after joining the room
+    const username = prompt("Please enter your name:");
+    if (username) {
+        currentUsername = username;
+        socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
+    }
 });
 
 // Update room UI when players or roles change
