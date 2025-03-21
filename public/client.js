@@ -18,12 +18,13 @@ document.getElementById("joinRoom").addEventListener("click", function() {
     document.getElementById("roomDisplay").textContent = roomCode;
     document.getElementById("lobby").style.display = "block";
 
-    // Prompt for the username immediately after joining the room
-    const username = prompt("Please enter your name:");
-    if (username) {
-        currentUsername = username;
-        socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
-    }
+    setTimeout(() => {
+        const username = prompt("Please enter your name:");
+        if (username) {
+            currentUsername = username;
+            socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
+        }
+    }, 500);
 });
 
 // Update room UI when players or roles change
@@ -47,68 +48,31 @@ socket.on('roomUpdate', (players, roles) => {
         playerList.appendChild(listItem);
     });
 
-    // Update role highlighting
-    updateRolesUI(roles);
+    // ✅ Corrected Role Highlighting Logic
+    document.querySelectorAll('.role').forEach(roleElement => {
+        const roleName = roleElement.getAttribute('data-role');
 
-    // Check if this player is the host
-    isHost = players[0].id === socket.id;
+        // Check if this specific role is selected in the roles object
+        const isSelected = Object.values(roles).some(selectedRole => selectedRole === roleName);
 
-    // Update the roles button text and functionality
-    const rolesButton = document.getElementById("roles");
-    if (isHost) {
-        rolesButton.textContent = "Edit Roles"; // Host can edit roles
-        rolesButton.onclick = function () {
-            document.getElementById("settingsPopup").style.display = "flex";
-        };
-    } else {
-        rolesButton.textContent = "View Roles"; // Non-hosts can only view roles
-        rolesButton.onclick = function () {
-            document.getElementById("settingsPopup").style.display = "flex";
-        };
-    }
-});
-
-// Function to update the roles UI
-function updateRolesUI(roles) {
-    document.querySelectorAll(".role").forEach(roleElement => {
-        roleElement.addEventListener("click", function () {
-            if (!isHost) return; // Only the host can select roles
-
-            const roleName = this.getAttribute("data-role");
-
-            // Toggle selection
-            if (this.classList.contains("selected")) {
-                this.classList.remove("selected", "evil", "good", "neutral");
+        if (isSelected) {
+            roleElement.classList.add('selected'); // Highlight role
+            
+            // Assign correct colors based on role type
+            if (['werewolf', 'minion', 'squire'].includes(roleName)) {
+                roleElement.classList.add('evil');
+                roleElement.classList.remove('neutral');
+            } else if (['tanner', 'executioner', 'apprentice-tanner'].includes(roleName)) {
+                roleElement.classList.add('neutral');
+                roleElement.classList.remove('evil');
             } else {
-                this.classList.add("selected");
-
-                // Assign colors based on role type
-                if (
-                    roleName === "werewolf" ||
-                    roleName === "minion" ||
-                    roleName === "squire" ||
-                    roleName === "alpha-wolf" ||
-                    roleName === "mystic-wolf" ||
-                    roleName === "dream-wolf"
-                ) {
-                    this.classList.add("evil");
-                } else if (
-                    roleName === "tanner" ||
-                    roleName === "apprentice-tanner" ||
-                    roleName === "executioner"
-                ) {
-                    this.classList.add("neutral");
-                } else {
-                    this.classList.add("good");
-                }
+                roleElement.classList.remove('evil', 'neutral'); // Default "good" roles
             }
-
-            // Send live update to server
-            const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-            socket.emit("updateRoles", { roomCode: currentRoom, roles: selectedRoles });
-        });
-    });  
-}
+        } else {
+            roleElement.classList.remove('selected', 'evil', 'neutral'); // Remove highlights
+        }
+    });
+});
 
 // Handle clicking on the "Roles" button
 document.getElementById("roles").addEventListener("click", () => {
@@ -117,14 +81,12 @@ document.getElementById("roles").addEventListener("click", () => {
     if (isHost) {
         settingsPopup.style.display = "flex"; // Host can modify roles
     } else {
-        settingsPopup.style.display = "flex"; // Non-hosts can view roles
+        // For non-hosts, show the available roles in a simple popup
+        const availableRoles = Object.values(roles).join(", ");
+
+        // Display the roles that the host has enabled (not assigned yet)
+        const rolesListPopup = document.getElementById("rolesListPopup");
+        rolesListPopup.innerHTML = `<strong>Selected Roles:</strong><br>${availableRoles}`;
+        rolesListPopup.style.display = "block";  // Show the popup
     }
-});
-
-// Handle saving role settings
-document.getElementById("saveSettings").style.display = "none";
-
-// Handle closing the popup
-document.getElementById("closePopup").addEventListener("click", function() {
-    document.getElementById("settingsPopup").style.display = "none";
 });
