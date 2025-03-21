@@ -126,49 +126,14 @@ document.getElementById("roles").addEventListener("click", () => {
     }
 });
 
-// Handle closing the popup
-document.getElementById("closePopup").addEventListener("click", function() {
+// Handle saving role settings
+document.getElementById("saveSettings").addEventListener("click", function() {
+    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
     document.getElementById("settingsPopup").style.display = "none";
 });
 
-// Role selection behavior (only for host)
-document.querySelectorAll(".role").forEach(function(role) {
-    role.addEventListener("click", function() {
-        if (!isHost) return; // Only the host can select roles
-
-        role.classList.toggle("selected");
-
-        // Get the updated list of selected roles
-        const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-
-        // Emit the updated roles to the server
-        socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-
-        // Highlight roles based on type
-        if (role.classList.contains("selected")) {
-            if (
-                role.dataset.role === "werewolf" ||
-                role.dataset.role === "minion" ||
-                role.dataset.role === "squire" ||
-                role.dataset.role === "alpha-wolf" ||
-                role.dataset.role === "mystic-wolf" ||
-                role.dataset.role === "dream-wolf"
-            ) {
-                role.classList.add("evil");
-                role.classList.remove("good", "neutral");
-            } else if (
-                role.dataset.role === "tanner" ||
-                role.dataset.role === "apprentice-tanner" ||
-                role.dataset.role === "executioner"
-            ) {
-                role.classList.add("neutral");
-                role.classList.remove("evil", "good");
-            } else {
-                role.classList.add("good");
-                role.classList.remove("evil", "neutral");
-            }
-        } else {
-            role.classList.remove("evil", "good", "neutral");
-        }
-    });
+// Handle closing the popup
+document.getElementById("closePopup").addEventListener("click", function() {
+    document.getElementById("settingsPopup").style.display = "none";
 });
