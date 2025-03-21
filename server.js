@@ -85,7 +85,29 @@ io.on('connection', (socket) => {
     
         // Notify all players in the room about role updates
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
-    });    
+    });
+
+    // Handle updating roles (when host saves settings)
+    socket.on('updateRoles', ({ roomCode, roles }) => {
+        if (!rooms[roomCode]) return;
+
+        // First player in list is the host
+        const hostId = rooms[roomCode].players[0]?.id;
+
+        // Check if the current user is the host
+        if (socket.id !== hostId) {
+            console.log(`User ${socket.id} tried to update roles but is not the host.`);
+            return;
+        }
+
+        // Update the roles in the room
+        rooms[roomCode].roles = roles;
+
+        console.log(`Roles updated in room ${roomCode}:`, roles);
+
+        // Notify all players in the room about the updated roles
+        io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
+    });
 
     // Handle disconnects
     socket.on('disconnect', () => {
