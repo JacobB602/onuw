@@ -201,7 +201,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const socket = io('https://onuw.onrender.com');
+            const socket = io('https://onuw.up.railway.app');
 
             // Socket.io error handling
             socket.on('connect_error', (error) => {
@@ -215,7 +215,7 @@
             socket.on('reconnect_failed', () => {
                 console.error("Socket.io reconnection failed.");
             });
-            
+
             let currentRoom = null;
             let isHost = false;
             let playerCount = 0;

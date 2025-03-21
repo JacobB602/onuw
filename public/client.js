@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const socket = io('https://onuw.onrender.com');
+    const socket = io('onuw.up.railway.app');
 
     let currentRoom = null;
     let currentUsername = null;
