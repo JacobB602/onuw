@@ -68,11 +68,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateRolesUI(roles) {
         document.querySelectorAll('.role').forEach(roleElement => {
             const roleName = roleElement.getAttribute('data-role');
-            const isSelected = roles.includes(roleName); // Treat roles as an array
+            const isSelected = roles.includes(roleName);
     
-            if (isSelected) {
+            // Only update the role's selection state and color if it's not already selected
+            if (isSelected && !roleElement.classList.contains('selected')) {
                 roleElement.classList.add('selected');
-                if (["werewolf", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
+                if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
                     roleElement.classList.add('evil');
                     roleElement.classList.remove('good', 'neutral');
                 } else if (["tanner", "apprentice-tanner", "executioner"].includes(roleName)) {
@@ -82,10 +83,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     roleElement.classList.add('good');
                     roleElement.classList.remove('evil', 'neutral');
                 }
-            } else {
-                roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
             }
     
+            // Disable roles for non-host players
             if (!isHost) {
                 roleElement.classList.add('disabled');
             } else {
