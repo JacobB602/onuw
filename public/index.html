@@ -109,7 +109,7 @@
         .game-container {
             max-width: 600px;
             margin: 50px auto;
-            background: transparent; /* Changed to transparent */
+            background: transparent;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
@@ -140,6 +140,9 @@
         }
 
         /* Card Styles */
+        .card-wrapper {
+            background-color: transparent;
+        }
         .card {
             position: relative;
             width: 200px;
@@ -147,48 +150,47 @@
             margin: 0 auto;
             perspective: 1000px;
             cursor: pointer;
-            border-radius: 15px; /* Rounded corners */
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Subtle shadow */
-            overflow: hidden; /* Ensure rounded corners are visible */
-            transform-style: preserve-3d; /* Ensure 3D transformations work */
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            transform-style: preserve-3d;
         }
 
         .card-front, .card-back {
             position: absolute;
             width: 100%;
             height: 100%;
-            backface-visibility: hidden; /* Hide the back face during flip */
+            backface-visibility: hidden;
             transition: transform 0.6s ease-in-out;
-            border-radius: 15px; /* Rounded corners */
+            border-radius: 15px;
             display: flex;
             align-items: center;
             justify-content: center;
             text-align: center;
-            font-size: 1.2em; /* Smaller font size */
+            font-size: 1.2em;
             color: white;
-            padding: 20px; /* Add padding for better text spacing */
-            box-sizing: border-box; /* Include padding in width/height */
-            font-family: 'Arial', sans-serif; /* Professional font */
-            font-weight: bold; /* Bold text */
-            text-transform: uppercase; /* Uppercase text */
-            letter-spacing: 1px; /* Slight letter spacing */
-            overflow: hidden; /* Prevent text overflow */
-            line-height: 1.4; /* Better line spacing */
+            padding: 20px;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            overflow: hidden;
+            line-height: 1.4;
         }
 
         .card-front {
-            background: linear-gradient(135deg, #6a11cb, #2575fc); /* Vibrant purple-to-blue gradient */
-            border: 2px solid rgba(255, 255, 255, 0.2); /* Subtle white border */
-            transform: rotateY(0deg); /* Start with front visible */
+            background: linear-gradient(135deg, #6a11cb, #2575fc);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transform: rotateY(0deg);
         }
 
         .card-back {
-            background: linear-gradient(135deg, #279927, #58be58); /* Green gradient */
-            border: 2px solid #4a9c4a; /* Card border */
-            transform: rotateY(180deg); /* Start with back hidden */
+            background: linear-gradient(135deg, #279927, #58be58);
+            border: 2px solid #4a9c4a;
+            transform: rotateY(180deg);
         }
 
-        /* Add a subtle pattern to the card front */
         .card-front::before {
             content: '';
             position: absolute;
@@ -203,10 +205,9 @@
                 transparent 10px,
                 transparent 20px
             );
-            border-radius: 10px; /* Match card border radius */
+            border-radius: 10px;
         }
 
-        /* Add a subtle pattern to the card back */
         .card-back::before {
             content: '';
             position: absolute;
@@ -221,21 +222,19 @@
                 transparent 10px,
                 transparent 20px
             );
-            border-radius: 10px; /* Match card border radius */
+            border-radius: 10px;
         }
 
-        /* Animation */
         .card.flipped .card-front {
-            transform: rotateY(180deg); /* Flip front */
+            transform: rotateY(180deg);
         }
 
         .card.flipped .card-back {
-            transform: rotateY(0deg); /* Flip back */
+            transform: rotateY(0deg);
         }
 
-        /* Hover Effect */
         .card:hover {
-            transform: scale(1.05); /* Slightly enlarge the card on hover */
+            transform: scale(1.05);
             transition: transform 0.2s ease-in-out;
         }
     </style>
@@ -396,97 +395,126 @@
                 console.log("gameStart event received:", assignedRoles);
                 console.log("My socket.id:", socket.id);
 
-// Debug: Check if the gameScreen element exists
-const gameScreen = document.getElementById('gameScreen');
-if (!gameScreen) {
-    console.error("gameScreen element not found!");
-    return;
-}
+                // Debug: Check if the gameScreen element exists
+                const gameScreen = document.getElementById('gameScreen');
+                if (!gameScreen) {
+                    console.error("gameScreen element not found!");
+                    return;
+                }
 
-// Debug: Check if the lobby element exists
-const lobby = document.getElementById('lobby');
-if (!lobby) {
-    console.error("lobby element not found!");
-    return;
-}
+                // Debug: Check if the lobby element exists
+                const lobby = document.getElementById('lobby');
+                if (!lobby) {
+                    console.error("lobby element not found!");
+                    return;
+                }
 
-// Hide the lobby and show the game screen
-lobby.style.display = 'none';
-gameScreen.style.display = 'block';
+                // Hide the lobby and show the game screen
+                lobby.style.display = 'none';
+                gameScreen.style.display = 'block';
 
-// Debug: Check if the player's role is assigned
-const myRole = assignedRoles[socket.id];
-if (!myRole) {
-    console.error("No role assigned for this player!");
-    return;
-}
-document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
+                // Debug: Check if the player's role is assigned
+                const myRoleTechnical = assignedRoles[socket.id];
+                if (!myRoleTechnical) {
+                    console.error("No role assigned for this player!");
+                    return;
+                }
 
-// Optional: Display all player roles (for testing)
-const playerRoleDisplay = document.getElementById('playerRoleDisplay');
-playerRoleDisplay.innerHTML = '';
-for (const playerId in assignedRoles) {
-    playerRoleDisplay.innerHTML += `<p>${playerId}: ${assignedRoles[playerId]}</p>`;
-}
-});
+                const roleDisplayNames = {
+                    "werewolf-1": "Werewolf",
+                    "werewolf-2": "Werewolf",
+                    "alpha-wolf": "Alpha Wolf",
+                    "mystic-wolf": "Mystic Wolf",
+                    "dream-wolf": "Dream Wolf",
+                    "minion": "Minion",
+                    "squire": "Squire",
+                    "tanner": "Tanner",
+                    "apprentice-tanner": "Apprentice Tanner",
+                    "executioner": "Executioner",
+                    "villager-1": "Villager",
+                    "villager-2": "Villager",
+                    "villager-3": "Villager",
+                    "seer": "Seer",
+                    "apprentice-seer": "Apprentice Seer",
+                    "troublemaker": "Troublemaker",
+                    "gremlin": "Gremlin",
+                    "paranormal-investigator": "Paranormal Investigator",
+                    "robber": "Robber",
+                    "witch": "Witch",
+                    "drunk": "Drunk",
+                    "insomniac": "Insomniac"
+                };
 
-// Update roles UI
-function updateRolesUI(roles) {
-document.querySelectorAll('.role').forEach(roleElement => {
-    const roleName = roleElement.getAttribute('data-role');
-    const isSelected = roles.includes(roleName);
+                const myRoleDisplayName = roleDisplayNames[myRoleTechnical] || myRoleTechnical;
+                document.getElementById('gameMessage').textContent = `Your role is: ${myRoleDisplayName}`;
 
-    roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
+                // Optional: Display all player roles (for testing)
+                const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+                playerRoleDisplay.innerHTML = '';
+                for (const playerId in assignedRoles) {
+                    const playerTechnicalRole = assignedRoles[playerId];
+                    const playerDisplayName = roleDisplayNames[playerTechnicalRole] || playerTechnicalRole;
+                    playerRoleDisplay.innerHTML += `<p>${playerId}: ${playerDisplayName}</p>`;
+                }
+            });
 
-    if (isSelected) {
-        roleElement.classList.add('selected');
-        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
-            roleElement.classList.add('evil');
-        } else if (["tanner", "apprentice-tanner", "executioner"].includes(roleName)) {
-            roleElement.classList.add('neutral');
-        } else {
-            roleElement.classList.add('good');
-        }
-    }
+            // Update roles UI
+            function updateRolesUI(roles) {
+                document.querySelectorAll('.role').forEach(roleElement => {
+                    const roleName = roleElement.getAttribute('data-role');
+                    const isSelected = roles.includes(roleName);
 
-    if (!isHost) {
-        roleElement.classList.add('disabled');
-    } else {
-        roleElement.classList.remove('disabled');
-    }
-});
-}
+                    roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
 
-function updateStartGameButtonState(updatedRoles) {
-const rolesRequired = playerCount + 3;
-const selectedRolesCount = Object.keys(updatedRoles).length;
-const startGameButton = document.getElementById("startGameButton");
-startGameButton.disabled = !(isHost && selectedRolesCount === rolesRequired);
-}
+                    if (isSelected) {
+                        roleElement.classList.add('selected');
+                        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
+                            roleElement.classList.add('evil');
+                        } else if (["tanner", "apprentice-tanner", "executioner"].includes(roleName)) {
+                            roleElement.classList.add('neutral');
+                        } else {
+                            roleElement.classList.add('good');
+                        }
+                    }
 
-document.getElementById("closePopup").addEventListener("click", function() {
-document.getElementById("settingsPopup").style.display = "none";
-});
+                    if (!isHost) {
+                        roleElement.classList.add('disabled');
+                    } else {
+                        roleElement.classList.remove('disabled');
+                    }
+                });
+            }
 
-document.querySelectorAll(".role").forEach(function(role) {
-role.addEventListener("click", function() {
-    if (!isHost) return;
+            function updateStartGameButtonState(updatedRoles) {
+                const rolesRequired = playerCount + 3;
+                const selectedRolesCount = Object.keys(updatedRoles).length;
+                const startGameButton = document.getElementById("startGameButton");
+                startGameButton.disabled = !(isHost && selectedRolesCount === rolesRequired);
+            }
 
-    // Toggle the selected class
-    role.classList.toggle("selected");
+            document.getElementById("closePopup").addEventListener("click", function() {
+                document.getElementById("settingsPopup").style.display = "none";
+            });
 
-    // Get the updated list of selected roles
-    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+            document.querySelectorAll(".role").forEach(function(role) {
+                role.addEventListener("click", function() {
+                    if (!isHost) return;
 
-    // Emit the updated roles to the server
-    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-});
-});
+                    // Toggle the selected class
+                    role.classList.toggle("selected");
 
-document.getElementById("startGameButton").addEventListener("click", function() {
-socket.emit("startGame", { roomCode: currentRoom });
-});
-});
-</script>
+                    // Get the updated list of selected roles
+                    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+
+                    // Emit the updated roles to the server
+                    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
+                });
+            });
+
+            document.getElementById("startGameButton").addEventListener("click", function() {
+                socket.emit("startGame", { roomCode: currentRoom });
+            });
+        });
+    </script>
 </body>
 </html>
