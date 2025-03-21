@@ -201,7 +201,21 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
+            const socket = io('https://onuw.onrender.com');
+
+            // Socket.io error handling
+            socket.on('connect_error', (error) => {
+                console.error("Socket.io connection error:", error);
+            });
+
+            socket.on('reconnect_error', (error) => {
+                console.error("Socket.io reconnection error:", error);
+            });
+
+            socket.on('reconnect_failed', () => {
+                console.error("Socket.io reconnection failed.");
+            });
+            
             let currentRoom = null;
             let isHost = false;
             let playerCount = 0;
@@ -298,41 +312,29 @@
                 }
             });
 
-            function updateRolesUI(updatedRoles) {
-                document.querySelectorAll(".role").forEach(roleElement => {
-                    const roleName = roleElement.getAttribute("data-role");
-                    const isSelected = Object.values(updatedRoles).includes(roleName);
+            // Update roles UI
+            function updateRolesUI(roles) {
+                document.querySelectorAll('.role').forEach(roleElement => {
+                    const roleName = roleElement.getAttribute('data-role');
+                    const isSelected = roles.includes(roleName);
+
+                    roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
+
                     if (isSelected) {
-                        roleElement.classList.add("selected");
-                        if (
-                            roleName === "werewolf-1" ||
-                            roleName === "werewolf-2" ||
-                            roleName === "minion" ||
-                            roleName === "squire" ||
-                            roleName === "alpha-wolf" ||
-                            roleName === "mystic-wolf" ||
-                            roleName === "dream-wolf"
-                        ) {
-                            roleElement.classList.add("evil");
-                            roleElement.classList.remove("good", "neutral");
-                        } else if (
-                            roleName === "tanner" ||
-                            roleName === "apprentice-tanner" ||
-                            roleName === "executioner"
-                        ) {
-                            roleElement.classList.add("neutral");
-                            roleElement.classList.remove("evil", "good");
+                        roleElement.classList.add('selected');
+                        if (["werewolf", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
+                            roleElement.classList.add('evil');
+                        } else if (["tanner", "apprentice-tanner", "executioner"].includes(roleName)) {
+                            roleElement.classList.add('neutral');
                         } else {
-                            roleElement.classList.add("good");
-                            roleElement.classList.remove("evil", "neutral");
+                            roleElement.classList.add('good');
                         }
-                    } else {
-                        roleElement.classList.remove("selected", "evil", "good", "neutral");
                     }
+
                     if (!isHost) {
-                        roleElement.classList.add("disabled");
+                        roleElement.classList.add('disabled');
                     } else {
-                        roleElement.classList.remove("disabled");
+                        roleElement.classList.remove('disabled');
                     }
                 });
             }

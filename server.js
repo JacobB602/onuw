@@ -9,7 +9,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "https://onuw.onrender.com",
         methods: ["GET", "POST"]
     }
 });
@@ -155,6 +155,6 @@ io.on('connection', (socket) => {
     });
 });
 
-server.listen(port, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${port}`);
+server.listen(process.env.PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${process.env.PORT}`);
 });

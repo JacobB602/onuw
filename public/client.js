@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
+    const socket = io('https://onuw.onrender.com');
 
     let currentRoom = null;
     let currentUsername = null;
@@ -137,11 +137,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Start game button
     document.getElementById("startGameButton").addEventListener("click", function() {
         console.log("Start game button clicked! (listener active)");
         console.log("Start game button disabled state:", document.getElementById("startGameButton").disabled);
+        console.log("Emitting startGame event for room:", currentRoom, "socket:", socket.id);
         socket.emit("startGame", { roomCode: currentRoom });
-        console.log("startGame event emitted for room:", currentRoom, "socket:", socket.id);
     });
 
     socket.on('gameStart', (assignedRoles) => {
