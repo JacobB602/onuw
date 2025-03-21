@@ -66,7 +66,6 @@ io.on('connection', (socket) => {
     });
 
     // Handle updating roles (when host saves settings)
-
     socket.on('updateRoles', ({ roomCode, roles }) => {
         if (!rooms[roomCode]) return;
 
@@ -87,7 +86,6 @@ io.on('connection', (socket) => {
         // Notify all players in the room about the updated roles
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
-
 
     // Handle disconnects
     socket.on('disconnect', () => {
