@@ -82,27 +82,25 @@
             border-radius: 5px;
             background: #444;
             cursor: pointer;
-            width: 100px; /* Default width */
+            width: 100px;
         }
         .evil {
             background-color: rgb(236, 16, 16);
             color: white;
         }
-
         .neutral {
             background-color: orange;
             color: white;
         }
-
         .good {
             background-color: rgb(0, 89, 255);
             color: white;
         }
         .role.single-option {
-            width: 372px; /* Width for roles with a single option, equal to both Werewolf boxes combined */
+            width: 372px;
         }
         .role-group2 .role {
-            width: 168px; /* Ensures both Werewolf boxes together equal the width of a single-option role */
+            width: 168px;
         }
         .role.disabled {
             cursor: not-allowed;
@@ -112,10 +110,16 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
 </head>
 <body>
+    <button id="testGameStart">Force Game Start (Test)</button>
+
+<script>
+    document.getElementById('testGameStart').addEventListener('click', function() {
+        socket.emit('startGame', { roomCode: currentRoom });
+    });
+</script>
     <div class="container">
         <h1>One Night Ultimate Werewolf</h1>
         <p>Enter a room code to join:</p>
-        
         <input type="text" id="roomCode" placeholder="Room Code">
         <button id="joinRoom">Join Room</button>
 
@@ -125,7 +129,14 @@
             <h3>Players:</h3>
             <ul id="playerList"></ul>
             <button id="roles">Loading...</button>
-            <button id="startGame" disabled>Start Game</button>
+            <button id="startGameButton">Start Game</button>
+        </div>
+    </div>
+
+    <div class="game-container" id="gameScreen" style="display:none;">
+        <div class="game-screen">
+            <div class="game-message" id="gameMessage"></div>
+            <div id="playerRoleDisplay"></div>
         </div>
     </div>
 
@@ -167,174 +178,152 @@
     </div>
 
     <script>
-        const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
-        let currentRoom = null;
-        let isHost = false; // Variable to track if the player is the host
-        let playerCount = 0; // Variable to store the number of players in the room
-        let roles = {}; // Variable to store the roles
+        document.addEventListener('DOMContentLoaded', function() {
+            const socket = io(window.location.hostname === "localhost" ? 'http://localhost:10000' : 'https://onuw.onrender.com');
+            let currentRoom = null;
+            let isHost = false;
+            let playerCount = 0;
+            let roles = {};
 
-        document.getElementById("joinRoom").addEventListener("click", function() {
-            const roomCode = document.getElementById("roomCode").value.trim();
-            if (!roomCode) {
-                alert("Please enter a room code!");
-                return;
-            }
-    
-            currentRoom = roomCode;
-            socket.emit('joinRoom', { roomCode });
-            document.getElementById("roomDisplay").textContent = roomCode;
-            document.getElementById("lobby").style.display = "block";
-        });
-
-        socket.on('roomUpdate', (players, updatedRoles) => {
-            console.log("Received room update:", players, updatedRoles);
-
-            // Update player count and adjust the role requirements
-            playerCount = players.length;
-            const rolesRequired = playerCount + 3; // 3 more than the player count
-            document.getElementById("rolesRequiredText").textContent = `Roles to be selected: ${rolesRequired}`;
-            
-            const playerList = document.getElementById("playerList");
-            playerList.innerHTML = "";
-            
-            // Update the player list
-            players.forEach(player => {
-                const listItem = document.createElement("li");
-                listItem.textContent = player.name || "Unnamed";
-
-                // Add role to the player list item
-                const role = updatedRoles[player.id];  // Get the player's role
-                if (role) {
-                    listItem.textContent += ` - ${role}`;  // Append the role to the name
+            document.getElementById("joinRoom").addEventListener("click", function() {
+                const roomCode = document.getElementById("roomCode").value.trim();
+                if (!roomCode) {
+                    alert("Please enter a room code!");
+                    return;
                 }
-
-                playerList.appendChild(listItem);
+                currentRoom = roomCode;
+                socket.emit('joinRoom', { roomCode });
+                document.getElementById("roomDisplay").textContent = roomCode;
+                document.getElementById("lobby").style.display = "block";
             });
-            
-            // Handle player name assignment if necessary
-            if (!players.some(player => player.id === socket.id && player.name)) {
-                const username = prompt("Please enter your name:");
-                if (username) {
-                    socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
-                }
-            }
-            
-            // Check if this player is the host
-            isHost = players[0].id === socket.id;
-            
-            // Update the roles button text and functionality
-            const rolesButton = document.getElementById("roles");
-            if (isHost) {
-                rolesButton.textContent = "Edit Roles"; // Host can edit roles
-                rolesButton.onclick = function () {
-                    document.getElementById("settingsPopup").style.display = "flex";
-                };
-            } else {
-                rolesButton.textContent = "View Roles"; // Non-hosts can only view roles
-                rolesButton.onclick = function () {
-                    document.getElementById("settingsPopup").style.display = "flex";
-                };
-            }
 
-            // Update the roles UI
-            updateRolesUI(updatedRoles);
-            document.getElementById("startGame").disabled = false;
-        });
-
-        // Function to update the roles UI
-        function updateRolesUI(updatedRoles) {
-            document.querySelectorAll(".role").forEach(roleElement => {
-                const roleName = roleElement.getAttribute("data-role");
-
-                // Check if this role is selected
-                const isSelected = Object.values(updatedRoles).includes(roleName);
-
-                // Highlight the role if selected
-                if (isSelected) {
-                    roleElement.classList.add("selected");
-
-                    // Assign colors based on role type
-                    if (
-                        roleName === "werewolf-1" ||
-                        roleName === "werewolf-2" ||
-                        roleName === "minion" ||
-                        roleName === "squire" ||
-                        roleName === "alpha-wolf" ||
-                        roleName === "mystic-wolf" ||
-                        roleName === "dream-wolf"
-                    ) {
-                        roleElement.classList.add("evil");
-                        roleElement.classList.remove("good", "neutral");
-                    } else if (
-                        roleName === "tanner" ||
-                        roleName === "apprentice-tanner" ||
-                        roleName === "executioner"
-                    ) {
-                        roleElement.classList.add("neutral");
-                        roleElement.classList.remove("evil", "good");
-                    } else {
-                        roleElement.classList.add("good");
-                        roleElement.classList.remove("evil", "neutral");
+            socket.on('roomUpdate', (players, updatedRoles) => {
+                console.log("Received room update:", players, updatedRoles);
+                playerCount = players.length;
+                const rolesRequired = playerCount + 3;
+                document.getElementById("rolesRequiredText").textContent = `Roles to be selected: ${rolesRequired}`;
+                const playerList = document.getElementById("playerList");
+                playerList.innerHTML = "";
+                players.forEach(player => {
+                    const listItem = document.createElement("li");
+                    listItem.textContent = player.name || "Unnamed";
+                    const role = updatedRoles[player.id];
+                    if (role) {
+                        listItem.textContent += ` - ${role}`;
                     }
-                } else {
-                    roleElement.classList.remove("selected", "evil", "good", "neutral");
-                }
-
-                // Disable role selection for non-hosts
-                if (!isHost) {
-                    roleElement.classList.add("disabled");
-                } else {
-                    roleElement.classList.remove("disabled");
-                }
-            });
-        }
-
-        document.getElementById("closePopup").addEventListener("click", function() {
-            document.getElementById("settingsPopup").style.display = "none";
-        });
-
-        // Role selection behavior (only for host)
-        document.querySelectorAll(".role").forEach(function(role) {
-            role.addEventListener("click", function() {
-                if (!isHost) return; // Only the host can select roles
-
-                role.classList.toggle("selected");
-
-                const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-                // Emit the updated roles to the server IMMEDIATELY
-                socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-
-                if (role.classList.contains("selected")) {
-                    // Highlight roles based on type
-                    if (
-                        role.dataset.role === "werewolf" ||
-                        role.dataset.role === "minion" ||
-                        role.dataset.role === "squire" ||
-                        role.dataset.role === "alpha-wolf" ||
-                        role.dataset.role === "mystic-wolf" ||
-                        role.dataset.role === "dream-wolf"
-                    ) {
-                        role.classList.add("evil");
-                        role.classList.remove("good", "neutral");
-                    } else if (
-                        role.dataset.role === "tanner" ||
-                        role.dataset.role === "apprentice-tanner" ||
-                        role.dataset.role === "executioner"
-                    ) {
-                        role.classList.add("neutral");
-                        role.classList.remove("evil", "good");
-                    } else {
-                        role.classList.add("good");
-                        role.classList.remove("evil", "neutral");
+                    playerList.appendChild(listItem);
+                });
+                if (!players.some(player => player.id === socket.id && player.name)) {
+                    const username = prompt("Please enter your name:");
+                    if (username) {
+                        socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
                     }
-                } else {
-                    role.classList.remove("evil", "good", "neutral");
                 }
+                isHost = players[0].id === socket.id;
+                const rolesButton = document.getElementById("roles");
+                if (isHost) {
+                    rolesButton.textContent = "Edit Roles";
+                    rolesButton.onclick = function () {
+                        document.getElementById("settingsPopup").style.display = "flex";
+                    };
+                } else {
+                    rolesButton.textContent = "View Roles";
+                    rolesButton.onclick = function () {
+                        document.getElementById("settingsPopup").style.display = "flex";
+                    };
+                }
+                updateRolesUI(updatedRoles);
+                updateStartGameButtonState(updatedRoles);
             });
-        });
 
-        socket.on("startGame", function() {
-            alert("The game is starting now!");
+            function updateRolesUI(updatedRoles) {
+                document.querySelectorAll(".role").forEach(roleElement => {
+                    const roleName = roleElement.getAttribute("data-role");
+                    const isSelected = Object.values(updatedRoles).includes(roleName);
+                    if (isSelected) {
+                        roleElement.classList.add("selected");
+                        if (
+                            roleName === "werewolf-1" ||
+                            roleName === "werewolf-2" ||
+                            roleName === "minion" ||
+                            roleName === "squire" ||
+                            roleName === "alpha-wolf" ||
+                            roleName === "mystic-wolf" ||
+                            roleName === "dream-wolf"
+                        ) {
+                            roleElement.classList.add("evil");
+                            roleElement.classList.remove("good", "neutral");
+                        } else if (
+                            roleName === "tanner" ||
+                            roleName === "apprentice-tanner" ||
+                            roleName === "executioner"
+                        ) {
+                            roleElement.classList.add("neutral");
+                            roleElement.classList.remove("evil", "good");
+                        } else {
+                            roleElement.classList.add("good");
+                            roleElement.classList.remove("evil", "neutral");
+                        }
+                    } else {
+                        roleElement.classList.remove("selected", "evil", "good", "neutral");
+                    }
+                    if (!isHost) {
+                        roleElement.classList.add("disabled");
+                    } else {
+                        roleElement.classList.remove("disabled");
+                    }
+                });
+            }
+
+            function updateStartGameButtonState(updatedRoles) {
+                const rolesRequired = playerCount + 3;
+                const selectedRolesCount = Object.keys(updatedRoles).length;
+                const startGameButton = document.getElementById("startGameButton");
+                startGameButton.disabled = !(isHost && selectedRolesCount === rolesRequired);
+            }
+
+            document.getElementById("closePopup").addEventListener("click", function() {
+                document.getElementById("settingsPopup").style.display = "none";
+            });
+
+            document.querySelectorAll(".role").forEach(function(role) {
+                role.addEventListener("click", function() {
+                    if (!isHost) return;
+                    role.classList.toggle("selected");
+                    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+                    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
+                    if (role.classList.contains("selected")) {
+                        if (
+                            role.dataset.role === "werewolf-1" ||
+                            role.dataset.role === "werewolf-2" ||
+                            role.dataset.role === "minion" ||
+                            role.dataset.role === "squire" ||
+                            role.dataset.role === "alpha-wolf" ||
+                            role.dataset.role === "mystic-wolf" ||
+                            role.dataset.role === "dream-wolf"
+                        ) {
+                            role.classList.add("evil");
+                            role.classList.remove("good", "neutral");
+                        } else if (
+                            role.dataset.role === "tanner" ||
+                            role.dataset.role === "apprentice-tanner" ||
+                            role.dataset.role === "executioner"
+                        ) {
+                            role.classList.add("neutral");
+                            role.classList.remove("evil", "good");
+                        } else {
+                            role.classList.add("good");
+                            role.classList.remove("evil", "neutral");
+                        }
+                    } else {
+                        role.classList.remove("evil", "good", "neutral");
+                    }
+                });
+            });
+
+            document.getElementById("startGameButton").addEventListener("click", function() {
+                socket.emit("startGame", { roomCode: currentRoom });
+            });
         });
     </script>
 </body>

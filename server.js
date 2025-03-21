@@ -5,9 +5,9 @@ const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 10000;
-const server = http.createServer(app); // Create the HTTP server
+const server = http.createServer(app);
 
-const io = new Server(server, {  // Create the Socket.io server
+const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
@@ -20,26 +20,14 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Declare the rooms object globally
 const rooms = {}; // Stores active rooms
 
-// Handle Socket.io connections
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
-
-    // Set a timeout for disconnecting users who don't join a room within 30 seconds
-    const timeoutDuration = 30000; // 30 seconds
-    const disconnectTimer = setTimeout(() => {
-        console.log(`User ${socket.id} did not join a room in time. Disconnecting.`);
-        socket.disconnect(); // Disconnect the user
-    }, timeoutDuration);
 
     // Handle joining a room
     socket.on('joinRoom', ({ roomCode }) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
-
-        // Clear the timeout as the user has joined the room in time
-        clearTimeout(disconnectTimer);
 
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: [], roles: {} };
@@ -51,6 +39,11 @@ io.on('connection', (socket) => {
 
         // Add player to the room
         rooms[roomCode].players.push({ id: socket.id });
+
+        // Update hostId
+        if (rooms[roomCode].players.length > 0) {
+            rooms[roomCode].hostId = rooms[roomCode].players[0].id;
+        }
 
         // Log the current players in the room
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
@@ -99,6 +92,45 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 
+    // Handle starting the game (when the host clicks "Start Game")
+    socket.on('startGame', ({ roomCode }) => {
+        console.log("startGame event received for room:", roomCode);
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        if (room.hostId !== socket.id) {
+            console.log("Only the host can start the game.");
+            return;
+        }
+    
+        const requiredRoles = room.players.length + 3;
+        if (room.roles.length !== requiredRoles) {
+            console.log("Incorrect number of roles selected.");
+            return;
+        }
+    
+        console.log("Starting game in room", roomCode, "...");
+    
+        // Assign roles to players
+        const assignedRoles = assignRoles(room.players, room.roles);
+    
+        // Send roles and start game event to clients
+        io.to(roomCode).emit('gameStart', assignedRoles);
+    
+        console.log("Game started in room", roomCode);
+    });
+    
+    function assignRoles(players, roles) {
+        const shuffledRoles = [...roles].sort(() => 0.5 - Math.random()); // Shuffle roles
+        const assignedRoles = {};
+    
+        players.forEach((player, index) => {
+            assignedRoles[player.id] = shuffledRoles[index];
+        });
+    
+        return assignedRoles;
+    }
+
     // Handle disconnects
     socket.on('disconnect', () => {
         console.log(`User ${socket.id} disconnected`);
@@ -110,13 +142,16 @@ io.on('connection', (socket) => {
                 delete rooms[roomCode];
                 console.log(`Room ${roomCode} deleted (empty).`);
             } else {
+                // Update hostId
+                if (rooms[roomCode].players.length > 0) {
+                    rooms[roomCode].hostId = rooms[roomCode].players[0].id;
+                }
                 io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
             }
         }
     });
 });
 
-// Start the server
 server.listen(port, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${port}`);
 });
