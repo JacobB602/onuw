@@ -11,8 +11,10 @@ const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
-    }
+    },
+    transports: ["websocket", "polling"]  // Ensure WebSocket works
 });
+
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -35,6 +37,7 @@ io.on('connection', (socket) => {
 
         // Join the room
         socket.join(roomCode);
+        socket.emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
         console.log(`User ${socket.id} joined room: ${roomCode}`);
 
         // Add player to the room
@@ -45,6 +48,8 @@ io.on('connection', (socket) => {
 
         // Notify all players of room updates
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
+        console.log(`Sent roomUpdate to ${roomCode}:`, rooms[roomCode].players, rooms[roomCode].roles);
+
     });
 
     // Handle setting username
