@@ -5,9 +5,9 @@ const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 10000;
-const server = http.createServer(app);
+const server = http.createServer(app); // Create the HTTP server
 
-const io = new Server(server, {
+const io = new Server(server, {  // Create the Socket.io server
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
@@ -20,14 +20,26 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// Declare the rooms object globally
 const rooms = {}; // Stores active rooms
 
+// Handle Socket.io connections
 io.on('connection', (socket) => {
     console.log(`User connected: ${socket.id}`);
+
+    // Set a timeout for disconnecting users who don't join a room within 30 seconds
+    const timeoutDuration = 30000; // 30 seconds
+    const disconnectTimer = setTimeout(() => {
+        console.log(`User ${socket.id} did not join a room in time. Disconnecting.`);
+        socket.disconnect(); // Disconnect the user
+    }, timeoutDuration);
 
     // Handle joining a room
     socket.on('joinRoom', ({ roomCode }) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
+
+        // Clear the timeout as the user has joined the room in time
+        clearTimeout(disconnectTimer);
 
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: [], roles: {} };
@@ -104,6 +116,7 @@ io.on('connection', (socket) => {
     });
 });
 
+// Start the server
 server.listen(port, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${port}`);
 });

@@ -306,6 +306,10 @@
 
                 role.classList.toggle("selected");
 
+                const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
+                // Emit the updated roles to the server IMMEDIATELY
+                socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
+
                 if (role.classList.contains("selected")) {
                     // Highlight roles based on type
                     if (
