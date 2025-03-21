@@ -286,6 +286,7 @@
                 } else {
                     roleElement.classList.remove("disabled");
                 }
+                socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
             });
         }
 
