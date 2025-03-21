@@ -30,7 +30,7 @@ io.on('connection', (socket) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
 
         if (!rooms[roomCode]) {
-            rooms[roomCode] = { players: [], roles: {} };
+            rooms[roomCode] = { players: [], roles: [] };
         }
 
         // Join the room
@@ -73,21 +73,21 @@ io.on('connection', (socket) => {
     // Handle updating roles (when host saves settings)
     socket.on('updateRoles', ({ roomCode, roles }) => {
         if (!rooms[roomCode]) return;
-
+    
         // First player in list is the host
         const hostId = rooms[roomCode].players[0]?.id;
-
+    
         // Check if the current user is the host
         if (socket.id !== hostId) {
             console.log(`User ${socket.id} tried to update roles but is not the host.`);
             return;
         }
-
-        // Update the roles in the room
+    
+        // Update the roles in the room (roles is already an array)
         rooms[roomCode].roles = roles;
-
+    
         console.log(`Roles updated in room ${roomCode}:`, roles);
-
+    
         // Notify all players in the room about the updated roles
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
@@ -113,6 +113,9 @@ io.on('connection', (socket) => {
     
         // Assign roles to players
         const assignedRoles = assignRoles(room.players, room.roles);
+    
+        // Log assigned roles for debugging
+        console.log("Assigned roles:", assignedRoles);
     
         // Send roles and start game event to clients
         io.to(roomCode).emit('gameStart', assignedRoles);

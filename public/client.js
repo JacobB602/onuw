@@ -68,8 +68,8 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateRolesUI(roles) {
         document.querySelectorAll('.role').forEach(roleElement => {
             const roleName = roleElement.getAttribute('data-role');
-            const isSelected = Object.values(roles).includes(roleName);
-
+            const isSelected = roles.includes(roleName); // Treat roles as an array
+    
             if (isSelected) {
                 roleElement.classList.add('selected');
                 if (["werewolf", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
             }
-
+    
             if (!isHost) {
                 roleElement.classList.add('disabled');
             } else {
@@ -96,7 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateStartGameButtonState(roles) {
         const requiredRoles = playerCount + 3;
-        const selectedRolesCount = Object.keys(roles).length;
+        const selectedRolesCount = roles.length; // Treat roles as an array
         const startGameButton = document.getElementById("startGameButton");
         if (isHost && selectedRolesCount === requiredRoles) {
             startGameButton.disabled = false;
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', function() {
             role.classList.toggle("selected");
             const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(selectedRole => selectedRole.dataset.role);
             socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-
+    
             if (role.classList.contains("selected")) {
                 if (["werewolf", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role.dataset.role)) {
                     role.classList.add("evil");
@@ -145,23 +145,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     socket.on('gameStart', (assignedRoles) => {
-        console.log("gameStart event handler is running!"); // Add this line
+        console.log("gameStart event handler is running!");
         console.log("gameStart event received:", assignedRoles);
         console.log("My socket.id:", socket.id);
     
-        document.getElementById('lobby').style.display = 'none';
-        document.getElementById('gameScreen').style.display = 'block';
+        // Debug: Check if the gameScreen element exists
+        const gameScreen = document.getElementById('gameScreen');
+        if (!gameScreen) {
+            console.error("gameScreen element not found!");
+            return;
+        }
     
-        const playerRoleDisplay = document.getElementById('playerRoleDisplay');
-        playerRoleDisplay.innerHTML = '';
+        // Debug: Check if the lobby element exists
+        const lobby = document.getElementById('lobby');
+        if (!lobby) {
+            console.error("lobby element not found!");
+            return;
+        }
     
+        // Hide the lobby and show the game screen
+        lobby.style.display = 'none';
+        gameScreen.style.display = 'block';
+    
+        // Debug: Check if the player's role is assigned
         const myRole = assignedRoles[socket.id];
+        if (!myRole) {
+            console.error("No role assigned for this player!");
+            return;
+        }
         document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
     
         // Optional: Display all player roles (for testing)
-        // for (const playerId in assignedRoles) {
-        //     playerRoleDisplay.innerHTML += `<p>${playerId}: ${assignedRoles[playerId]}</p>`;
-        // }
+        const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+        playerRoleDisplay.innerHTML = '';
+        for (const playerId in assignedRoles) {
+            playerRoleDisplay.innerHTML += `<p>${playerId}: ${assignedRoles[playerId]}</p>`;
+        }
     });
 
     socket.on('connect', () => {

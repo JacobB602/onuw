@@ -106,17 +106,39 @@
             cursor: not-allowed;
             opacity: 0.7;
         }
+        .game-container {
+            max-width: 600px;
+            margin: 50px auto;
+            background: #2c2c2c;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        .game-screen {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .game-message {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        #playerRoleDisplay {
+            font-size: 1.2em;
+            color: #ffffff;
+            background: #3c3c3c;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
 </head>
 <body>
-    <button id="testGameStart">Force Game Start (Test)</button>
-
-<script>
-    document.getElementById('testGameStart').addEventListener('click', function() {
-        socket.emit('startGame', { roomCode: currentRoom });
-    });
-</script>
     <div class="container">
         <h1>One Night Ultimate Werewolf</h1>
         <p>Enter a room code to join:</p>
@@ -234,6 +256,46 @@
                 }
                 updateRolesUI(updatedRoles);
                 updateStartGameButtonState(updatedRoles);
+            });
+
+            // Add the gameStart event handler here
+            socket.on('gameStart', (assignedRoles) => {
+                console.log("gameStart event handler is running!");
+                console.log("gameStart event received:", assignedRoles);
+                console.log("My socket.id:", socket.id);
+
+                // Debug: Check if the gameScreen element exists
+                const gameScreen = document.getElementById('gameScreen');
+                if (!gameScreen) {
+                    console.error("gameScreen element not found!");
+                    return;
+                }
+
+                // Debug: Check if the lobby element exists
+                const lobby = document.getElementById('lobby');
+                if (!lobby) {
+                    console.error("lobby element not found!");
+                    return;
+                }
+
+                // Hide the lobby and show the game screen
+                lobby.style.display = 'none';
+                gameScreen.style.display = 'block';
+
+                // Debug: Check if the player's role is assigned
+                const myRole = assignedRoles[socket.id];
+                if (!myRole) {
+                    console.error("No role assigned for this player!");
+                    return;
+                }
+                document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
+
+                // Optional: Display all player roles (for testing)
+                const playerRoleDisplay = document.getElementById('playerRoleDisplay');
+                playerRoleDisplay.innerHTML = '';
+                for (const playerId in assignedRoles) {
+                    playerRoleDisplay.innerHTML += `<p>${playerId}: ${assignedRoles[playerId]}</p>`;
+                }
             });
 
             function updateRolesUI(updatedRoles) {
