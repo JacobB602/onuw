@@ -9,22 +9,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
-
         if (!roomCode) {
             alert("Please enter a room code!");
             return;
         }
-
         currentRoom = roomCode;
         socket.emit('joinRoom', { roomCode });
-
-        document.getElementById("roomDisplay").textContent = roomCode;
+    
+        // Show the lobby (including the join room button and input box)
         document.getElementById("lobby").style.display = "block";
-
+    
+        // Hide the game screen (if visible)
+        document.getElementById("gameScreen").style.display = "none";
+    
+        // Prompt for username
         const username = prompt("Please enter your name:");
         if (username) {
-            currentUsername = username;
-            socket.emit('joinRoomWithName', { roomCode: currentRoom, username: currentUsername });
+            socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
         }
     });
 
@@ -150,31 +151,29 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("gameStart event received:", assignedRoles);
         console.log("My socket.id:", socket.id);
     
-        // Debug: Check if the gameScreen element exists
-        const gameScreen = document.getElementById('gameScreen');
-        if (!gameScreen) {
-            console.error("gameScreen element not found!");
-            return;
-        }
-    
-        // Debug: Check if the lobby element exists
+        // Hide the lobby
         const lobby = document.getElementById('lobby');
-        if (!lobby) {
-            console.error("lobby element not found!");
-            return;
+        if (lobby) {
+            lobby.style.display = 'none';
         }
     
-        // Hide the lobby and show the game screen
-        lobby.style.display = 'none';
-        gameScreen.style.display = 'block';
+        // Show the game screen
+        const gameScreen = document.getElementById('gameScreen');
+        if (gameScreen) {
+            gameScreen.style.display = 'block';
+        }
     
-        // Debug: Check if the player's role is assigned
+        // Display the player's role
         const myRole = assignedRoles[socket.id];
         if (!myRole) {
             console.error("No role assigned for this player!");
             return;
         }
         document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
+    
+        // Trigger the card flip animation
+        const card = document.getElementById('card');
+        card.classList.add('flipped');
     
         // Optional: Display all player roles (for testing)
         const playerRoleDisplay = document.getElementById('playerRoleDisplay');
