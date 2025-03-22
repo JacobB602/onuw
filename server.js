@@ -176,7 +176,22 @@ io.on('connection', (socket) => {
         if (!rooms[roomCode].nightPhaseActive) return;
     
         if (rooms[roomCode].currentRoleIndex >= rooms[roomCode].gameRoleTurnOrder.length) {
-            io.to(roomCode).emit('startDayPhase');
+            // Calculate duration based on player count
+            const playerCount = rooms[roomCode].players.length;
+            const duration = playerCount * 60; // 1 minute per player
+    
+            const roleOrder = rooms[roomCode].gameRoleTurnOrder;
+            io.to(roomCode).emit('dayPhase', { duration, roleOrder });
+    
+            let timer = duration;
+            const intervalId = setInterval(() => {
+                timer--;
+                io.to(roomCode).emit('dayTimer', { timer });
+                if (timer <= 0) {
+                    clearInterval(intervalId);
+                    io.to(roomCode).emit('endDayPhase');
+                }
+            }, 1000);
             return;
         }
     
@@ -193,7 +208,7 @@ io.on('connection', (socket) => {
         io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
     
         // Start 15 second timer
-        let timer = 15;
+        let timer = 3;
         const intervalId = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
@@ -220,6 +235,22 @@ io.on('connection', (socket) => {
         }
         rooms[roomCode].currentRoleIndex++;
         nextRoleTurn(roomCode);
+    });
+
+    socket.on('startDayPhase', (roomCode) => {
+        if (!rooms[roomCode]) return;
+        const duration = rooms[roomCode].players.length * 60; // 1 minute per player
+        io.to(roomCode).emit('dayPhase', { duration, roleOrder: rooms[roomCode].gameRoleTurnOrder });
+
+        let timer = duration;
+        const intervalId = setInterval(() => {
+            timer--;
+            io.to(roomCode).emit('dayTimer', { timer });
+            if (timer <= 0) {
+                clearInterval(intervalId);
+                io.to(roomCode).emit('endDayPhase');
+            }
+        }, 1000);
     });
 
     // Handle disconnects

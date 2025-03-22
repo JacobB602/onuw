@@ -18,6 +18,33 @@ document.addEventListener('DOMContentLoaded', function() {
     let roles = {};
     let confirmButton;
     let originalRoleCard;
+    let clientAssignedRoles;
+
+    const roleDisplayNames = {
+        'werewolf-1': 'Werewolf',
+        'werewolf-2': 'Werewolf',
+        'alpha-wolf': 'Alpha Wolf',
+        'mystic-wolf': 'Mystic Wolf',
+        'dream-wolf': 'Dream Wolf',
+        'minion': 'Minion',
+        'squire': 'Squire',
+        'tanner': 'Tanner',
+        'apprentice-tanner': 'Apprentice Tanner',
+        'executioner': 'Executioner',
+        'villager-1': 'Villager',
+        'villager-2': 'Villager',
+        'villager-3': 'Villager',
+        'seer': 'Seer',
+        'apprentice-seer': 'Apprentice Seer',
+        'troublemaker': 'Troublemaker',
+        'gremlin': 'Gremlin',
+        'paranormal-investigator': 'Paranormal Investigator',
+        'robber': 'Robber',
+        'witch': 'Witch',
+        'drunk': 'Drunk',
+        'insomniac': 'Insomniac',
+        // Add other roles as needed
+    };
 
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
@@ -56,7 +83,7 @@ document.addEventListener('DOMContentLoaded', function() {
             listItem.textContent = player.name || "Unnamed";
             const role = roles[player.id];
             if (role) {
-                listItem.textContent += ` - ${role}`;
+                listItem.textContent += ` - ${roleDisplayNames[role] || role}`; // Use displayName or original if not found
             }
             playerList.appendChild(listItem);
         });
@@ -168,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("gameStart event received:", assignedRoles);
         console.log("My socket.id:", socket.id);
     
+        clientAssignedRoles = assignedRoles;
+    
         // Hide the lobby
         const lobby = document.getElementById('lobby');
         if (lobby) {
@@ -186,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("No role assigned for this player!");
             return;
         }
-        document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
+        document.getElementById('gameMessage').textContent = `Your role is: ${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;  
     
         // Create and append the button
         const confirmButton = document.createElement("button");
@@ -235,12 +264,39 @@ document.addEventListener('DOMContentLoaded', function() {
     
     socket.on('startNightPhase', () => {
         document.getElementById("gameScreen").innerHTML = "<h1>Night Phase</h1><p>Night phase is starting.</p>";
-        originalRoleCard = document.createElement("div");
-        originalRoleCard.id = "originalRoleCard";
-        originalRoleCard.textContent = `Original Role: ${assignedRoles[socket.id]}`;
-        document.body.appendChild(originalRoleCard);
     
-        // ADD the center cards creation and appending here
+        // Remove old card if exists
+        if (document.getElementById('originalRoleCard')) {
+            document.getElementById('originalRoleCard').remove();
+        }
+    
+        // Create a mini card wrapper and the card itself
+        const cardWrapper = document.createElement('div');
+        cardWrapper.classList.add('card-wrapper', 'mini-card-wrapper'); // Add mini-card-wrapper class
+    
+        const card = document.createElement('div');
+        card.id = 'originalRoleCard';
+        card.classList.add('card', 'mini-card'); // Add mini-card class
+    
+        const cardFront = document.createElement('div');
+        cardFront.classList.add('card-front', 'mini-card-front');
+    
+        const cardBack = document.createElement('div');
+        cardBack.classList.add('card-back', 'mini-card-back');
+        cardBack.textContent = `${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`; // Only role name
+    
+        // Append card elements
+        card.appendChild(cardFront);
+        card.appendChild(cardBack);
+        cardWrapper.appendChild(card);
+        document.body.appendChild(cardWrapper);
+    
+        // Add flip functionality
+        card.addEventListener('click', () => {
+            card.classList.toggle('flipped');
+        });
+    
+        // Center cards
         const centerCardsDiv = document.createElement('div');
         centerCardsDiv.id = 'centerCards';
         centerCardsDiv.innerHTML = `
@@ -253,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     socket.on('nightTurn', ({ currentRole, currentPlayer }) => {
         const gameScreen = document.getElementById("gameScreen");
-        gameScreen.innerHTML = `<h1>Night Phase</h1><p>${currentRole}'s turn.</p>`;
+        gameScreen.innerHTML = `<h1>Night Phase</h1><p>${roleDisplayNames[currentRole] || currentRole}'s turn.</p>`;    
     
         if (currentPlayer === socket.id) {
             gameScreen.innerHTML += `<p>It's your turn. Take your action.</p><button id="completeTurn">Complete Turn</button><div id="turnTimerDisplay">15</div>`; // Add timer display
@@ -263,7 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     
             // Play audio alert
-            const audio = new Audio('turn_alert.wav'); // Replace with your audio file
+            const audio = new Audio('big_dog.ogg'); // Replace with your audio file
             audio.play();
         } else {
             gameScreen.innerHTML += `<p>Waiting for another player to complete their action.</p><div id="turnTimerDisplay">15</div>`; // Add timer display
@@ -282,11 +338,36 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    socket.on('startDayPhase', () => {
-        document.getElementById("gameScreen").innerHTML = "<h1>Day Phase</h1><p>Day phase is starting.</p>";
+    socket.on('dayPhase', ({ duration, roleOrder }) => { // Corrected event name
+        document.getElementById('gameScreen').innerHTML = `
+            <h1>Day Phase</h1>
+            <p>Day phase is starting. Discuss!</p>
+            <div id="dayTimerDisplay">${duration}</div>
+            <div id="roleOrderDisplay">
+                <h3>Role Order:</h3>
+                <ul>${roleOrder.map(role => `<li>${roleDisplayNames[role] || role}</li>`).join('')}</ul>
+            </div>
+        `;
+    
         if (originalRoleCard) {
             originalRoleCard.remove();
         }
+    });
+    
+    socket.on('dayTimer', ({ timer }) => {
+        const minutes = Math.floor(timer / 60);
+        const seconds = timer % 60;
+        const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    
+        const timerDisplay = document.getElementById('dayTimerDisplay');
+        if (timerDisplay) {
+            timerDisplay.textContent = formattedTime;
+        }
+    });
+
+    socket.on('endDayPhase', () => {
+        document.getElementById('gameScreen').innerHTML = '<h1>Day Phase Over</h1><p>Time to vote!</p>';
+        // Add voting UI here
     });
 
     socket.on('connect', () => {
