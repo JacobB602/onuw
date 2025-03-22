@@ -46,6 +46,29 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add other roles as needed
     };
 
+    function getRoleAlignment(role) {
+        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role)) {
+            return 'evil';
+        } else if (["tanner", "apprentice-tanner", "executioner"].includes(role)) {
+            return 'neutral';
+        } else {
+            return 'good';
+        }
+    }
+
+    function setCardBackColor(cardBack, roleAlignment) {
+        if (roleAlignment === 'evil') {
+            cardBack.style.background = 'linear-gradient(135deg, rgb(236, 16, 16), rgb(180, 12, 12))'; // Gradient red for evil
+            cardBack.style.border = '2px solid rgb(180, 12, 12)';
+        } else if (roleAlignment === 'neutral') {
+            cardBack.style.background = 'linear-gradient(135deg, orange, rgb(200, 140, 0))'; // Gradient orange for neutral
+            cardBack.style.border = '2px solid rgb(200, 140, 0)';
+        } else {
+            cardBack.style.background = 'linear-gradient(135deg, rgb(0, 89, 255), rgb(0, 60, 200))'; // Gradient blue for good
+            cardBack.style.border = '2px solid rgb(0, 60, 200)';
+        }
+    }
+
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
         if (!roomCode) {
@@ -194,47 +217,52 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("gameStart event handler is running!");
         console.log("gameStart event received:", assignedRoles);
         console.log("My socket.id:", socket.id);
-    
+
         clientAssignedRoles = assignedRoles;
-    
+
         // Hide the lobby
         const lobby = document.getElementById('lobby');
         if (lobby) {
             lobby.style.display = 'none';
         }
-    
+
         // Show the game screen
         const gameScreen = document.getElementById('gameScreen');
         if (gameScreen) {
             gameScreen.style.display = 'block';
         }
-    
+
         // Display the player's role
         const myRole = assignedRoles[socket.id];
         if (!myRole) {
             console.error("No role assigned for this player!");
             return;
         }
-        document.getElementById('gameMessage').textContent = `Your role is: ${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;  
-    
+        document.getElementById('gameMessage').textContent = `Your role is: ${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;
+
+        // Set card back color based on role alignment
+        const cardBack = document.querySelector('.card-back');
+        const roleAlignment = getRoleAlignment(clientAssignedRoles[socket.id]);
+        setCardBackColor(cardBack, roleAlignment);
+
         // Create and append the button
         const confirmButton = document.createElement("button");
         confirmButton.textContent = "Confirm Role";
         confirmButton.addEventListener("click", confirmRole);
-    
+
         console.log("gameScreen element:", document.getElementById("gameScreen"));
         console.log("confirmButton element:", confirmButton);
-    
+
         gameScreen.appendChild(confirmButton);
-    
+
         console.log("Button appended successfully.");
-    
+
         // Optional: Add some styling to the button to make it more visible
         confirmButton.style.marginTop = "20px";
         confirmButton.style.padding = "10px 20px";
         confirmButton.style.fontSize = "16px";
     });
-
+    
     document.getElementById('card').addEventListener('click', () => {
         document.getElementById('card').classList.toggle('flipped');
     });
@@ -272,24 +300,29 @@ document.addEventListener('DOMContentLoaded', function() {
     
         // Create a mini card wrapper and the card itself
         const cardWrapper = document.createElement('div');
-        cardWrapper.classList.add('card-wrapper', 'mini-card-wrapper'); // Add mini-card-wrapper class
+        cardWrapper.classList.add('card-wrapper', 'mini-card-wrapper');
     
         const card = document.createElement('div');
         card.id = 'originalRoleCard';
-        card.classList.add('card', 'mini-card'); // Add mini-card class
+        card.classList.add('card', 'mini-card');
     
         const cardFront = document.createElement('div');
         cardFront.classList.add('card-front', 'mini-card-front');
     
         const cardBack = document.createElement('div');
         cardBack.classList.add('card-back', 'mini-card-back');
-        cardBack.textContent = `${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`; // Only role name
+        cardBack.textContent = `${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;
     
         // Append card elements
         card.appendChild(cardFront);
         card.appendChild(cardBack);
         cardWrapper.appendChild(card);
         document.body.appendChild(cardWrapper);
+    
+        // Set mini card back color (moved after appending)
+        const miniCardBack = document.querySelector('.mini-card-back');
+        const roleAlignment = getRoleAlignment(clientAssignedRoles[socket.id]);
+        setCardBackColor(miniCardBack, roleAlignment);
     
         // Add flip functionality
         card.addEventListener('click', () => {

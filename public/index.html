@@ -194,6 +194,8 @@
             background: linear-gradient(135deg, #279927, #58be58);
             border: 2px solid #4a9c4a;
             transform: rotateY(180deg);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            transition: transform 0.6s ease-in-out, box-shadow 0.3s ease;
         }
     
         .card-front::before, .card-back::before {
@@ -279,6 +281,46 @@
         .mini-card-wrapper .card {
             width: 100%;
             height: 100%;
+        }
+    
+        .card-back.evil {
+            background: linear-gradient(135deg, rgb(236, 16, 16), rgb(180, 12, 12));
+            border: 2px solid rgb(180, 12, 12);
+            box-shadow: 0 0 10px rgba(236, 16, 16, 0.7);
+        }
+
+        .card-back.neutral {
+            background: linear-gradient(135deg, orange, rgb(200, 140, 0));
+            border: 2px solid rgb(200, 140, 0);
+            box-shadow: 0 0 10px rgba(255, 165, 0, 0.7);
+        }
+
+        .card-back.good {
+            background: linear-gradient(135deg, rgb(0, 89, 255), rgb(0, 60, 200));
+            border: 2px solid rgb(0, 60, 200);
+            box-shadow: 0 0 10px rgba(0, 89, 255, 0.7);
+        }
+
+        .mini-card-back {
+            /* Add glow to mini card back */
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+
+        /* Add the role specific colors to mini card back */
+        .mini-card-back.evil {
+            background: linear-gradient(135deg, rgb(236, 16, 16), rgb(180, 12, 12));
+            border: 2px solid rgb(180, 12, 12);
+            box-shadow: 0 0 5px rgba(236, 16, 16, 0.7);
+        }
+        .mini-card-back.neutral {
+            background: linear-gradient(135deg, orange, rgb(200, 140, 0));
+            border: 2px solid rgb(200, 140, 0);
+            box-shadow: 0 0 5px rgba(255, 165, 0, 0.7);
+        }
+        .mini-card-back.good {
+            background: linear-gradient(135deg, rgb(0, 89, 255), rgb(0, 60, 200));
+            border: 2px solid rgb(0, 60, 200);
+            box-shadow: 0 0 5px rgba(0, 89, 255, 0.7);
         }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>

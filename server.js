@@ -22,8 +22,8 @@ app.get('/', (req, res) => {
 
 const rooms = {}; // Stores active rooms
 const roleTurnOrder = [
-    "werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf", "minion", "squire", "tanner", "apprentice-tanner", "executioner",
-    "villager-1", "villager-2", "villager-3", "seer", "apprentice-seer", "troublemaker", "gremlin", "paranormal-investigator", "robber", "witch", "drunk", "insomniac"
+    "dream-wolf", "tanner", "villager-1", "villager-2", "villager-3", "werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "minion", "apprentice-tanner",  "executioner",
+    "seer", "apprentice-seer", "paranormal-investigator", "robber", "witch", "troublemaker", "gremlin", "drunk", "insomniac", "squire",
 ];
 
 io.on('connection', (socket) => {
