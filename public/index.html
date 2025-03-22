@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="client.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>One Night Ultimate Werewolf</title>
@@ -75,70 +76,5 @@
             </div>
         </div>
     </div>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const socket = io('https://onuw.up.railway.app');
-            let currentRoom = null, isHost = false, playerCount = 0, roles = {};
-            socket.on('connect_error', err => console.error("Socket error:", err));
-            socket.on('reconnect_error', err => console.error("Reconnection error:", err));
-            socket.on('reconnect_failed', () => console.error("Reconnection failed."));
-            document.getElementById("joinRoom").addEventListener("click", () => {
-                const roomCode = document.getElementById("roomCode").value.trim();
-                if (!roomCode) return alert("Enter room code!");
-                currentRoom = roomCode;
-                socket.emit('joinRoom', { roomCode });
-                document.getElementById("roomDisplay").textContent = roomCode;
-                document.getElementById("lobby").style.display = "block";
-            });
-            document.getElementById('card').addEventListener('click', () => document.getElementById('card').classList.toggle('flipped'));
-            socket.on('roomUpdate', (players, updatedRoles) => {
-                playerCount = players.length;
-                document.getElementById("rolesRequiredText").textContent = `Roles to select: ${playerCount + 3}`;
-                document.getElementById("playerList").innerHTML = players.map(p => `<li>${p.name || "Unnamed"} ${updatedRoles[p.id] ? `- ${updatedRoles[p.id]}` : ""}</li>`).join('');
-                if (!players.some(p => p.id === socket.id && p.name)) {
-                    const username = prompt("Enter name:");
-                    if (username) socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
-                }
-                isHost = players[0].id === socket.id;
-                document.getElementById("roles").textContent = isHost ? "Edit Roles" : "View Roles";
-                document.getElementById("roles").onclick = () => document.getElementById("settingsPopup").style.display = "flex";
-                updateRolesUI(updatedRoles);
-                updateStartGameButtonState(updatedRoles);
-            });
-            socket.on('gameStart', assignedRoles => {
-                document.getElementById('lobby').style.display = 'none';
-                document.getElementById('gameScreen').style.display = 'block';
-                document.getElementById('gameMessage').textContent = `Your role: ${{
-                    "werewolf-1": "Werewolf", "werewolf-2": "Werewolf", "alpha-wolf": "Alpha Wolf", "mystic-wolf": "Mystic Wolf",
-                    "dream-wolf": "Dream Wolf", "minion": "Minion", "squire": "Squire", "tanner": "Tanner", "apprentice-tanner": "Apprentice Tanner",
-                    "executioner": "Executioner", "villager-1": "Villager", "villager-2": "Villager", "villager-3": "Villager", "seer": "Seer",
-                    "apprentice-seer": "Apprentice Seer", "troublemaker": "Troublemaker", "gremlin": "Gremlin", "paranormal-investigator": "Paranormal Investigator",
-                    "robber": "Robber", "witch": "Witch", "drunk": "Drunk", "insomniac": "Insomniac"
-                }[assignedRoles[socket.id]] || assignedRoles[socket.id]}`;
-            });
-            function updateRolesUI(roles) {
-                document.querySelectorAll('.role').forEach(role => {
-                    role.classList.remove('selected', 'evil', 'good', 'neutral');
-                    if (roles.includes(role.dataset.role)) {
-                        role.classList.add('selected');
-                        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role.dataset.role)) role.classList.add('evil');
-                        else if (["tanner", "apprentice-tanner", "executioner"].includes(role.dataset.role)) role.classList.add('neutral');
-                        else role.classList.add('good');
-                    }
-                    role.classList[isHost ? 'remove' : 'add']('disabled');
-                });
-            }
-            function updateStartGameButtonState(updatedRoles) {
-                document.getElementById("startGameButton").disabled = !(isHost && Object.keys(updatedRoles).length === playerCount + 3);
-            }
-            document.getElementById("closePopup").addEventListener("click", () => document.getElementById("settingsPopup").style.display = "none");
-            document.querySelectorAll(".role").forEach(role => role.addEventListener("click", () => {
-                if (!isHost) return;
-                role.classList.toggle("selected");
-                socket.emit('updateRoles', { roomCode: currentRoom, roles: Array.from(document.querySelectorAll(".role.selected")).map(r => r.dataset.role) });
-            }));
-            document.getElementById("startGameButton").addEventListener("click", () => socket.emit("startGame", { roomCode: currentRoom }));
-        });
-    </script>
 </body>
 </html>

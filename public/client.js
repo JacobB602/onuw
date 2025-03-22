@@ -1,11 +1,22 @@
+console.log("client.js file loaded and executing!");
+
 document.addEventListener('DOMContentLoaded', function() {
-    const socket = io('onuw.up.railway.app');
+    console.log("DOMContentLoaded event listener added!");
+    let socket;
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        // Local testing
+        socket = io('http://localhost:10000');
+    } else {
+        // Deployed on Railway
+        socket = io('https://onuw.up.railway.app');
+    }
 
     let currentRoom = null;
     let currentUsername = null;
     let isHost = false;
     let playerCount = 0;
     let roles = {};
+    let confirmButton;
 
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
@@ -30,12 +41,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     socket.on('roomUpdate', (players, receivedRoles) => {
+        console.log("roomUpdate event received");
         console.log("Received room update:", players, receivedRoles);
         roles = receivedRoles;
-
+    
+        playerCount = players.length; // Add this line!
+    
         const playerList = document.getElementById("playerList");
         playerList.innerHTML = "";
-
+    
         players.forEach(player => {
             const listItem = document.createElement("li");
             listItem.textContent = player.name || "Unnamed";
@@ -45,11 +59,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             playerList.appendChild(listItem);
         });
-
-        playerCount = players.length;
+    
         updateRolesUI(roles);
         isHost = players[0]?.id === socket.id;
-
+    
         const rolesButton = document.getElementById("roles");
         if (isHost) {
             rolesButton.textContent = "Edit Roles";
@@ -62,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById("settingsPopup").style.display = "flex";
             };
         }
-
+    
         updateStartGameButtonState(roles);
     });
 
@@ -122,7 +135,7 @@ document.addEventListener('DOMContentLoaded', function() {
             socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
     
             if (role.classList.contains("selected")) {
-                if (["werewolf", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role.dataset.role)) {
+                if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role.dataset.role)) {
                     role.classList.add("evil");
                     role.classList.remove("good", "neutral");
                 } else if (["tanner", "apprentice-tanner", "executioner"].includes(role.dataset.role)) {
@@ -173,14 +186,37 @@ document.addEventListener('DOMContentLoaded', function() {
     
         // Trigger the card flip animation
         const card = document.getElementById('card');
-        card.classList.add('flipped');
     
-        // Optional: Display all player roles (for testing)
-        const playerRoleDisplay = document.getElementById('playerRoleDisplay');
-        playerRoleDisplay.innerHTML = '';
-        for (const playerId in assignedRoles) {
-            playerRoleDisplay.innerHTML += `<p>${playerId}: ${assignedRoles[playerId]}</p>`;
-        }
+        // Create and append the button
+        const confirmButton = document.createElement("button");
+        confirmButton.textContent = "Confirm Role";
+        confirmButton.addEventListener("click", confirmRole); // We'll define confirmRole later
+    
+        console.log("gameScreen element:", document.getElementById("gameScreen")); // Add this line
+        console.log("confirmButton element:", confirmButton); // Add this line
+    
+        document.getElementById("gameScreen").appendChild(confirmButton);
+    
+        console.log("Button appended successfully."); // Add this line
+    
+        // Optional: Add some styling to the button to make it more visible
+        confirmButton.style.marginTop = "20px"; // Add some space between the card and the button
+        confirmButton.style.padding = "10px 20px";
+        confirmButton.style.fontSize = "16px";
+    });
+
+    document.getElementById('card').addEventListener('click', () => {
+        document.getElementById('card').classList.toggle('flipped');
+    });
+
+    function confirmRole() {
+        socket.emit('confirmRole', { roomCode: currentRoom });
+        confirmButton.disabled = true; // Disable the button after confirmation
+    }
+    
+    socket.on('startNightPhase', () => {
+        document.getElementById("gameScreen").innerHTML = "<h1>Night Phase</h1><p>Night phase is starting.</p>";
+        // Add night phase UI here
     });
 
     socket.on('connect', () => {
