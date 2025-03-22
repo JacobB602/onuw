@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Received room update:", players, receivedRoles);
         roles = receivedRoles;
     
-        playerCount = players.length; // Add this line!
+        playerCount = players.length; // Correctly sets playerCount
     
         const playerList = document.getElementById("playerList");
         playerList.innerHTML = "";
@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             playerList.appendChild(listItem);
         });
+    
+        // Update the rolesRequiredText element
+        document.getElementById("rolesRequiredText").textContent = `Roles to select: ${playerCount + 3}`;
     
         updateRolesUI(roles);
         isHost = players[0]?.id === socket.id;
@@ -188,9 +191,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const card = document.getElementById('card');
     
         // Create and append the button
-        const confirmButton = document.createElement("button");
+        confirmButton = document.createElement("button");
         confirmButton.textContent = "Confirm Role";
-        confirmButton.addEventListener("click", confirmRole); // We'll define confirmRole later
+        confirmButton.addEventListener("click", confirmRole);
     
         console.log("gameScreen element:", document.getElementById("gameScreen")); // Add this line
         console.log("confirmButton element:", confirmButton); // Add this line
@@ -211,8 +214,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function confirmRole() {
         socket.emit('confirmRole', { roomCode: currentRoom });
-        confirmButton.disabled = true; // Disable the button after confirmation
+        if (confirmButton) {
+            confirmButton.remove();
+        }
+        document.getElementById("gameScreen").innerHTML += '<p id="confirmationMessage">Waiting on others...</p>';
     }
+
+    socket.on('roleConfirmed', ({ confirmedPlayers, players }) => {
+        const confirmationMessage = document.getElementById("confirmationMessage");
+        if (confirmationMessage) {
+            const waitingPlayers = players
+                .filter(player => !confirmedPlayers[player.id])
+                .map(player => player.name || "Unnamed");
+    
+            if (waitingPlayers.length > 0) {
+                confirmationMessage.textContent = `Waiting on: ${waitingPlayers.join(", ")}`;
+            } else {
+                confirmationMessage.textContent = "All players confirmed!";
+            }
+        }
+    });
     
     socket.on('startNightPhase', () => {
         document.getElementById("gameScreen").innerHTML = "<h1>Night Phase</h1><p>Night phase is starting.</p>";

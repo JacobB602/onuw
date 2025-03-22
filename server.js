@@ -134,6 +134,28 @@ io.on('connection', (socket) => {
         return assignedRoles;
     }
 
+    socket.on('confirmRole', ({ roomCode }) => {
+        if (!rooms[roomCode]) return;
+        if (!rooms[roomCode].confirmedPlayers) {
+            rooms[roomCode].confirmedPlayers = {};
+        }
+        rooms[roomCode].confirmedPlayers[socket.id] = true;
+
+        io.to(roomCode).emit('roleConfirmed', {
+            confirmedPlayers: rooms[roomCode].confirmedPlayers,
+            players: rooms[roomCode].players
+        });
+
+        const allConfirmed = rooms[roomCode].players.every(player =>
+            rooms[roomCode].confirmedPlayers[player.id]
+        );
+
+        if (allConfirmed) {
+            io.to(roomCode).emit('startNightPhase');
+            rooms[roomCode].confirmedPlayers = {}; // Reset for the next phase
+        }
+    });
+
     // Handle disconnects
     socket.on('disconnect', () => {
         console.log(`User ${socket.id} disconnected`);
