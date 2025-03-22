@@ -31,37 +31,45 @@ io.on('connection', (socket) => {
 
     socket.on('joinRoom', ({ roomCode }) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
-
+    
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: [], roles: [], confirmedPlayers: {}, assignedRoles: {}, votes: {} };
         }
-
+    
+        // Check if the player is already in the room
+        const existingPlayer = rooms[roomCode].players.find(player => player.id === socket.id);
+        if (!existingPlayer) {
+            rooms[roomCode].players.push({ id: socket.id }); // Add new player
+        }
+    
         socket.join(roomCode);
         console.log(`User ${socket.id} joined room: ${roomCode}`);
-
-        rooms[roomCode].players.push({ id: socket.id });
-
+    
         if (rooms[roomCode].players.length > 0) {
             rooms[roomCode].hostId = rooms[roomCode].players[0].id;
         }
-
+    
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
-
+    
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 
     socket.on('joinRoomWithName', ({ roomCode, username }) => {
         console.log(`User ${socket.id} is setting their name to ${username} in room ${roomCode}`);
-
+    
         if (!rooms[roomCode]) return;
-
+    
+        // Find the player and update their name
         const player = rooms[roomCode].players.find(player => player.id === socket.id);
         if (player) {
             player.name = username;
+        } else {
+            // If the player doesn't exist, add them (this should not happen if joinRoom is called first)
+            rooms[roomCode].players.push({ id: socket.id, name: username });
         }
-
+    
         console.log(`Updated players in room ${roomCode}:`, rooms[roomCode].players);
-
+    
         io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
     });
 
@@ -95,6 +103,7 @@ io.on('connection', (socket) => {
         const requiredRoles = room.players.length + 3;
         if (room.roles.length !== requiredRoles) {
             console.log("Incorrect number of roles selected.");
+            io.to(socket.id).emit('error', { message: "Please select exactly " + requiredRoles + " roles." });
             return;
         }
 
@@ -156,7 +165,7 @@ io.on('connection', (socket) => {
 
         if (rooms[roomCode].currentRoleIndex >= rooms[roomCode].gameRoleTurnOrder.length) {
             const playerCount = rooms[roomCode].players.length;
-            const duration = playerCount * 15;
+            const duration = playerCount * 5;
 
             const roleOrder = rooms[roomCode].gameRoleTurnOrder;
             io.to(roomCode).emit('dayPhase', { duration, roleOrder });
@@ -184,7 +193,7 @@ io.on('connection', (socket) => {
 
         io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
 
-        let timer = 15;
+        let timer = 3;
         const intervalId = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
@@ -297,29 +306,35 @@ io.on('connection', (socket) => {
 
     socket.on('playAgain', (roomCode) => {
         if (!rooms[roomCode]) return;
-
+    
+        // Initialize playAgainPlayers if it doesn't exist
         if (!rooms[roomCode].playAgainPlayers) {
             rooms[roomCode].playAgainPlayers = {};
         }
-
+    
+        // Mark the current player as ready to play again
         rooms[roomCode].playAgainPlayers[socket.id] = true;
-
+    
         // Check if all players want to play again
         const allPlayAgain = rooms[roomCode].players.every(player =>
             rooms[roomCode].playAgainPlayers[player.id]
         );
-
+    
         if (allPlayAgain) {
-            // Reset room state for a new game
+            // Reset the game state
             rooms[roomCode].confirmedPlayers = {};
-            rooms[roomCode].assignedRoles = {};
+            rooms[roomCode].assignedRoles = {}; // Clear assigned roles
             rooms[roomCode].votes = {};
             rooms[roomCode].playAgainPlayers = {};
             rooms[roomCode].nightPhaseActive = false;
             rooms[roomCode].currentRoleIndex = 0;
             rooms[roomCode].turnIntervals = {};
-
-            io.to(roomCode).emit('allPlayAgain'); // Notify all players that the game is resetting
+    
+            // Notify all players to reset their UI
+            io.to(roomCode).emit('resetGame');
+    
+            // Emit the updated player list and roles
+            io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
         }
     });
 

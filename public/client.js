@@ -217,50 +217,81 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("gameStart event handler is running!");
         console.log("gameStart event received:", assignedRoles);
         console.log("My socket.id:", socket.id);
-
+    
         clientAssignedRoles = assignedRoles;
-
+    
         // Hide the lobby
         const lobby = document.getElementById('lobby');
         if (lobby) {
             lobby.style.display = 'none';
         }
-
+    
         // Show the game screen
         const gameScreen = document.getElementById('gameScreen');
         if (gameScreen) {
-            gameScreen.style.display = 'block';
+            gameScreen.style.display = 'block'; // Ensure the game screen is visible
+    
+            // Clear the game screen content
+            gameScreen.innerHTML = `
+                <div class="game-screen">
+                    <div class="card-wrapper">
+                        <div class="card" id="card">
+                            <div class="card-front">Click to Reveal Role</div>
+                            <div class="card-back"><div class="game-message" id="gameMessage"></div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+    
+            // Update the player's role
+            const myRole = assignedRoles[socket.id];
+            if (!myRole) {
+                console.error("No role assigned for this player!");
+                return;
+            }
+    
+            const gameMessage = document.getElementById('gameMessage');
+            if (gameMessage) {
+                gameMessage.textContent = `Your role is: ${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;
+            }
+    
+            // Set card back color based on role alignment
+            const cardBack = document.querySelector('.card-back');
+            if (cardBack) {
+                const roleAlignment = getRoleAlignment(clientAssignedRoles[socket.id]);
+                setCardBackColor(cardBack, roleAlignment);
+            }
+    
+            // Remove existing confirm button if it exists
+            const existingConfirmButton = document.getElementById('confirmButton');
+            if (existingConfirmButton) {
+                existingConfirmButton.remove();
+            }
+    
+            // Create and append the confirm button
+            const confirmButton = document.createElement("button");
+            confirmButton.id = "confirmButton"; // Add an ID for easy removal later
+            confirmButton.textContent = "Confirm Role";
+            confirmButton.addEventListener("click", confirmRole);
+    
+            // Style the button
+            confirmButton.style.marginTop = "20px";
+            confirmButton.style.padding = "10px 20px";
+            confirmButton.style.fontSize = "16px";
+    
+            // Append the button to the game screen
+            gameScreen.appendChild(confirmButton);
+    
+            // Reattach the card flip event listener
+            const card = document.getElementById('card');
+            if (card) {
+                card.addEventListener('click', () => {
+                    card.classList.toggle('flipped');
+                });
+            }
+    
+            console.log("Button appended successfully.");
         }
-
-        // Display the player's role
-        const myRole = assignedRoles[socket.id];
-        if (!myRole) {
-            console.error("No role assigned for this player!");
-            return;
-        }
-        document.getElementById('gameMessage').textContent = `Your role is: ${roleDisplayNames[clientAssignedRoles[socket.id]] || clientAssignedRoles[socket.id]}`;
-
-        // Set card back color based on role alignment
-        const cardBack = document.querySelector('.card-back');
-        const roleAlignment = getRoleAlignment(clientAssignedRoles[socket.id]);
-        setCardBackColor(cardBack, roleAlignment);
-
-        // Create and append the button
-        const confirmButton = document.createElement("button");
-        confirmButton.textContent = "Confirm Role";
-        confirmButton.addEventListener("click", confirmRole);
-
-        console.log("gameScreen element:", document.getElementById("gameScreen"));
-        console.log("confirmButton element:", confirmButton);
-
-        gameScreen.appendChild(confirmButton);
-
-        console.log("Button appended successfully.");
-
-        // Optional: Add some styling to the button to make it more visible
-        confirmButton.style.marginTop = "20px";
-        confirmButton.style.padding = "10px 20px";
-        confirmButton.style.fontSize = "16px";
     });
     
     document.getElementById('card').addEventListener('click', () => {
@@ -484,9 +515,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
-        // Display the voting result and game outcome.
+        // Display the voting result and game outcome
         socket.emit('requestPlayerList', currentRoom);
-        socket.on('playerList', (players) => {
+        socket.once('playerList', (players) => {
             const votedPlayerName = players.find(p => p.id === votedPlayerId)?.name || 'Unnamed';
     
             let votesDisplay = '<h2>Vote Counts:</h2>';
@@ -495,24 +526,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 votesDisplay += `<p>${playerName}: ${votes[playerId]}</p>`;
             }
     
-            const gameScreen = document.getElementById('gameScreen'); // Get the gameScreen element
-    
-            if (gameScreen) { // Check if gameScreen exists
+            const gameScreen = document.getElementById('gameScreen');
+            if (gameScreen) {
                 gameScreen.innerHTML = `
                     <h1>Voting Result</h1>
                     <p>The player voted out was: ${votedPlayerName}</p>
                     ${votesDisplay}
                     <p>Winning Team: ${winningTeam}</p>
+                    <button id="playAgainButton">Play Again</button>
                 `;
     
-                // Add Play Again button to the gameScreen
-                const playAgainButton = document.createElement('button');
-                playAgainButton.textContent = 'Play Again';
-                playAgainButton.addEventListener('click', () => {
-                    socket.emit('playAgain', currentRoom);
-                    playAgainButton.disabled = true; // Disable the button after clicking
-                });
-                gameScreen.appendChild(playAgainButton);
+                // Add event listener for the "Play Again" button
+                const playAgainButton = document.getElementById('playAgainButton');
+                if (playAgainButton) {
+                    playAgainButton.addEventListener('click', () => {
+                        socket.emit('playAgain', currentRoom);
+                        playAgainButton.disabled = true; // Disable the button after clicking
+                    });
+                }
             } else {
                 console.error("gameScreen element not found when trying to display voting results.");
             }
@@ -522,6 +553,53 @@ document.addEventListener('DOMContentLoaded', function() {
     socket.on('endVotingPhase', (roomCode) => {
         console.log("Client: endVotingPhase event received.");
         socket.emit('endVotingPhase', roomCode);
+    });
+
+    socket.on('resetGame', () => {
+        console.log("Resetting game UI...");
+    
+        // Hide the game screen
+        const gameScreen = document.getElementById('gameScreen');
+        if (gameScreen) {
+            gameScreen.style.display = 'none';
+        }
+    
+        // Show the lobby
+        const lobby = document.getElementById('lobby');
+        if (lobby) {
+            lobby.style.display = 'block';
+        }
+    
+        // Clear dynamic elements (e.g., confirm button, timers)
+        const confirmButton = document.getElementById('confirmButton');
+        if (confirmButton) {
+            confirmButton.remove();
+        }
+    
+        const confirmationMessage = document.getElementById('confirmationMessage');
+        if (confirmationMessage) {
+            confirmationMessage.remove();
+        }
+    
+        // Reset the roles button text
+        const rolesButton = document.getElementById('roles');
+        if (rolesButton) {
+            rolesButton.textContent = "Loading...";
+        }
+    
+        // Reset the start game button
+        const startGameButton = document.getElementById('startGameButton');
+        if (startGameButton) {
+            startGameButton.disabled = true;
+        }
+    
+        // Clear the player list
+        const playerList = document.getElementById('playerList');
+        if (playerList) {
+            playerList.innerHTML = '';
+        }
+    
+        console.log("Game UI reset complete.");
     });
 
     socket.on('connect', () => {
