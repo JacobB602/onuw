@@ -5,250 +5,46 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>One Night Ultimate Werewolf</title>
     <style>
-        body {
-            background-color: #1e1e1e;
-            color: #ffffff;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #2c2c2c;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
-        }
-        input, button {
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 5px;
-            border: none;
-        }
-        input {
-            width: 80%;
-            background: #3c3c3c;
-            color: #ffffff;
-        }
-        button {
-            background: #4CAF50;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #45a049;
-        }
-        ul {
-            list-style-type: none;
-            padding-left: 0;
-        }
-        .popup-background {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-        .popup {
-            background: #2c2c2c;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
-            width: 400px;
-            text-align: center;
-        }
-        .role-selection {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 5px;
-        }
-        .role-group2 {
-            display: flex;
-            gap: 6px;
-        }
-        .role-group3 {
-            display: flex;
-            gap: 6px;
-        }
-        .role {
-            padding: 10px 15px;
-            border-radius: 5px;
-            background: #444;
-            cursor: pointer;
-            width: 100px;
-        }
-        .evil {
-            background-color: rgb(236, 16, 16);
-            color: white;
-        }
-        .neutral {
-            background-color: orange;
-            color: white;
-        }
-        .good {
-            background-color: rgb(0, 89, 255);
-            color: white;
-        }
-        .role.single-option {
-            width: 372px;
-        }
-        .role-group2 .role {
-            width: 168px;
-        }
-        .role.disabled {
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        .game-container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: transparent;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
-            text-align: center;
-        }
-        .game-screen {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .game-message {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #ffffff;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-            line-height: 1.5;
-            padding: 10px;
-        }
-
-        #playerRoleDisplay {
-            font-size: 1.2em;
-            color: #ffffff;
-            background: #3c3c3c;
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-
-        /* Card Styles */
-        .card-wrapper {
-            background-color: transparent;
-        }
-        .card {
-            position: relative;
-            width: 200px;
-            height: 300px;
-            margin: 0 auto;
-            perspective: 1000px;
-            cursor: pointer;
-            border-radius: 15px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            transform-style: preserve-3d;
-        }
-
-        .card-front, .card-back {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            transition: transform 0.6s ease-in-out;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            font-size: 1.2em;
-            color: white;
-            padding: 20px;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            overflow: hidden;
-            line-height: 1.4;
-        }
-
-        .card-front {
-            background: linear-gradient(135deg, #6a11cb, #2575fc);
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            transform: rotateY(0deg);
-        }
-
-        .card-back {
-            background: linear-gradient(135deg, #279927, #58be58);
-            border: 2px solid #4a9c4a;
-            transform: rotateY(180deg);
-        }
-
-        .card-front::before {
-            content: '';
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
-            background: repeating-linear-gradient(
-                45deg,
-                rgba(255, 255, 255, 0.1),
-                rgba(255, 255, 255, 0.1) 10px,
-                transparent 10px,
-                transparent 20px
-            );
-            border-radius: 10px;
-        }
-
-        .card-back::before {
-            content: '';
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            right: 10px;
-            bottom: 10px;
-            background: repeating-linear-gradient(
-                45deg,
-                rgba(255, 255, 255, 0.1),
-                rgba(255, 255, 255, 0.1) 10px,
-                transparent 10px,
-                transparent 20px
-            );
-            border-radius: 10px;
-        }
-
-        .card.flipped .card-front {
-            transform: rotateY(180deg);
-        }
-
-        .card.flipped .card-back {
-            transform: rotateY(0deg);
-        }
-
-        .card:hover {
-            transform: scale(1.05);
-            transition: transform 0.2s ease-in-out;
-        }
+        body { background-color: #1e1e1e; color: #fff; font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 0; }
+        .container { max-width: 600px; margin: 50px auto; background: #2c2c2c; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); }
+        input, button { margin: 10px 0; padding: 10px; border-radius: 5px; border: none; }
+        input { width: 80%; background: #3c3c3c; color: #fff; }
+        button { background: #4CAF50; color: #fff; cursor: pointer; }
+        button:hover { background: #45a049; }
+        ul { list-style-type: none; padding-left: 0; }
+        .popup-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; }
+        .popup { background: #2c2c2c; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); width: 400px; text-align: center; }
+        .role-selection { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .role-group2, .role-group3 { display: flex; gap: 6px; }
+        .role { padding: 10px 15px; border-radius: 5px; background: #444; cursor: pointer; width: 100px; }
+        .evil { background-color: rgb(236, 16, 16); color: #fff; }
+        .neutral { background-color: orange; color: #fff; }
+        .good { background-color: rgb(0, 89, 255); color: #fff; }
+        .role.single-option { width: 372px; }
+        .role-group2 .role { width: 168px; }
+        .role.disabled { cursor: not-allowed; opacity: 0.7; }
+        .game-container { max-width: 600px; margin: 50px auto; background: transparent; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); text-align: center; }
+        .game-screen { display: flex; flex-direction: column; gap: 20px; }
+        .game-message { font-size: 1.2em; font-weight: bold; color: #fff; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); line-height: 1.5; padding: 10px; }
+        .card-wrapper { background-color: transparent; }
+        .card { position: relative; width: 200px; height: 300px; margin: 0 auto; perspective: 1000px; cursor: pointer; border-radius: 15px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); overflow: hidden; transform-style: preserve-3d; }
+        .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; transition: transform 0.6s ease-in-out; border-radius: 15px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 1.2em; color: #fff; padding: 20px; box-sizing: border-box; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; overflow: hidden; line-height: 1.4; }
+        .card-front { background: linear-gradient(135deg, #6a11cb, #2575fc); border: 2px solid rgba(255, 255, 255, 0.2); transform: rotateY(0deg); }
+        .card-back { background: linear-gradient(135deg, #279927, #58be58); border: 2px solid #4a9c4a; transform: rotateY(180deg); }
+        .card-front::before, .card-back::before { content: ''; position: absolute; top: 10px; left: 10px; right: 10px; bottom: 10px; background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.1) 10px, transparent 10px, transparent 20px); border-radius: 10px; }
+        .card.flipped .card-front { transform: rotateY(180deg); }
+        .card.flipped .card-back { transform: rotateY(0deg); }
+        .card:hover { transform: scale(1.05); transition: transform 0.2s ease-in-out; }
+        #joinRoom { margin-left: 5px;}
+        #startGameButton { margin-top: 10px;}
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>One Night Ultimate Werewolf</h1>
-
         <div id="lobby">
-            <p>Enter a room code to join:</p>
-            <input type="text" id="roomCode" placeholder="Room Code">
-            <button id="joinRoom">Join Room</button>
-
+            <p>Enter a room code:<input type="text" id="roomCode" placeholder="Room Code"><button id="joinRoom">Join Room</button></p>
             <h2>Lobby</h2>
             <p>Room Code: <span id="roomDisplay"></span></p>
             <h3>Players:</h3>
@@ -256,264 +52,92 @@
             <button id="roles">Loading...</button>
             <button id="startGameButton">Start Game</button>
         </div>
-
         <div class="game-container" id="gameScreen" style="display:none;">
             <div class="game-screen">
                 <div class="card-wrapper">
                     <div class="card" id="card">
                         <div class="card-front">Click to Reveal Role</div>
-                        <div class="card-back">
-                            <div class="game-message" id="gameMessage"></div>
-                        </div>
+                        <div class="card-back"><div class="game-message" id="gameMessage"></div></div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="popup-background" id="settingsPopup">
-        <div class="popup">
-            <h2>Roles</h2>
-            <div id="rolesRequiredText">Roles to be selected: 0</div>
-            <div class="role-selection">
-                <div class="role-group2">
-                    <div class="role" data-role="werewolf-1">Werewolf</div>
-                    <div class="role" data-role="werewolf-2">Werewolf</div>
-                </div>
-                <div class="role single-option" data-role="alpha-wolf">Alpha Wolf</div>
-                <div class="role single-option" data-role="mystic-wolf">Mystic Wolf</div>
-                <div class="role single-option" data-role="dream-wolf">Dream Wolf</div>
-                <div class="role single-option" data-role="minion">Minion</div>
-                <div class="role single-option" data-role="squire">Squire</div>
-                <div class="role single-option" data-role="tanner">Tanner</div>
-                <div class="role single-option" data-role="apprentice-tanner">Apprentice Tanner</div>
-                <div class="role single-option" data-role="executioner">Executioner</div>
-                <div class="role-group3">
-                    <div class="role" data-role="villager-1">Villager</div>
-                    <div class="role" data-role="villager-2">Villager</div>
-                    <div class="role" data-role="villager-3">Villager</div>
-                </div>
-                <div class="role single-option" data-role="seer">Seer</div>
-                <div class="role single-option" data-role="apprentice-seer">Apprentice Seer</div>
-                <div class="role single-option" data-role="troublemaker">Troublemaker</div>
-                <div class="role single-option" data-role="gremlin">Gremlin</div>
-                <div class="role single-option" data-role="paranormal-investigator">Paranormal Investigator</div>
-                <div class="role single-option" data-role="robber">Robber</div>
-                <div class="role single-option" data-role="witch">Witch</div>
-                <div class="role single-option" data-role="drunk">Drunk</div>
-                <div class="role single-option" data-role="insomniac">Insomniac</div>
+        <div class="popup-background" id="settingsPopup">
+            <div class="popup">
+                <h2>Roles</h2>
+                <div id="rolesRequiredText">Roles to select: 0</div>
+                <div class="role-selection">
+                    <div class="role-group2"><div class="role" data-role="werewolf-1">Werewolf</div><div class="role" data-role="werewolf-2">Werewolf</div></div>
+                    <div class="role single-option" data-role="alpha-wolf">Alpha Wolf</div><div class="role single-option" data-role="mystic-wolf">Mystic Wolf</div><div class="role single-option" data-role="dream-wolf">Dream Wolf</div><div class="role single-option" data-role="minion">Minion</div><div class="role single-option" data-role="squire">Squire</div><div class="role single-option" data-role="tanner">Tanner</div><div class="role single-option" data-role="apprentice-tanner">Apprentice Tanner</div><div class="role single-option" data-role="executioner">Executioner</div>
+                    <div class="role-group3"><div class="role" data-role="villager-1">Villager</div><div class="role" data-role="villager-2">Villager</div><div class="role" data-role="villager-3">Villager</div></div>
+                    <div class="role single-option" data-role="seer">Seer</div><div class="role single-option" data-role="apprentice-seer">Apprentice Seer</div><div class="role single-option" data-role="troublemaker">Troublemaker</div><div class="role single-option" data-role="gremlin">Gremlin</div><div class="role single-option" data-role="paranormal-investigator">Paranormal Investigator</div><div class="role single-option" data-role="robber">Robber</div><div class="role single-option" data-role="witch">Witch</div><div class="role single-option" data-role="drunk">Drunk</div><div class="role single-option" data-role="insomniac">Insomniac</div>
+                </div><br><button id="closePopup">Close</button>
             </div>
-            <br>
-            <button id="closePopup">Close</button>
         </div>
     </div>
-
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
             const socket = io('https://onuw.up.railway.app');
-
-            // Socket.io error handling
-            socket.on('connect_error', (error) => {
-                console.error("Socket.io connection error:", error);
-            });
-
-            socket.on('reconnect_error', (error) => {
-                console.error("Socket.io reconnection error:", error);
-            });
-
-            socket.on('reconnect_failed', () => {
-                console.error("Socket.io reconnection failed.");
-            });
-
-            let currentRoom = null;
-            let isHost = false;
-            let playerCount = 0;
-            let roles = {};
-
-            document.getElementById("joinRoom").addEventListener("click", function() {
+            let currentRoom = null, isHost = false, playerCount = 0, roles = {};
+            socket.on('connect_error', err => console.error("Socket error:", err));
+            socket.on('reconnect_error', err => console.error("Reconnection error:", err));
+            socket.on('reconnect_failed', () => console.error("Reconnection failed."));
+            document.getElementById("joinRoom").addEventListener("click", () => {
                 const roomCode = document.getElementById("roomCode").value.trim();
-                if (!roomCode) {
-                    alert("Please enter a room code!");
-                    return;
-                }
+                if (!roomCode) return alert("Enter room code!");
                 currentRoom = roomCode;
                 socket.emit('joinRoom', { roomCode });
                 document.getElementById("roomDisplay").textContent = roomCode;
                 document.getElementById("lobby").style.display = "block";
             });
-
-            // Add click event listener to the card
-            const card = document.getElementById('card');
-            if (card) {
-                card.addEventListener('click', function() {
-                    card.classList.toggle('flipped');
-                });
-            }
-
+            document.getElementById('card').addEventListener('click', () => document.getElementById('card').classList.toggle('flipped'));
             socket.on('roomUpdate', (players, updatedRoles) => {
-                console.log("Received room update:", players, updatedRoles);
                 playerCount = players.length;
-                const rolesRequired = playerCount + 3;
-                document.getElementById("rolesRequiredText").textContent = `Roles to be selected: ${rolesRequired}`;
-                const playerList = document.getElementById("playerList");
-                playerList.innerHTML = "";
-                players.forEach(player => {
-                    const listItem = document.createElement("li");
-                    listItem.textContent = player.name || "Unnamed";
-                    const role = updatedRoles[player.id];
-                    if (role) {
-                        listItem.textContent += ` - ${role}`;
-                    }
-                    playerList.appendChild(listItem);
-                });
-                if (!players.some(player => player.id === socket.id && player.name)) {
-                    const username = prompt("Please enter your name:");
-                    if (username) {
-                        socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
-                    }
+                document.getElementById("rolesRequiredText").textContent = `Roles to select: ${playerCount + 3}`;
+                document.getElementById("playerList").innerHTML = players.map(p => `<li>${p.name || "Unnamed"} ${updatedRoles[p.id] ? `- ${updatedRoles[p.id]}` : ""}</li>`).join('');
+                if (!players.some(p => p.id === socket.id && p.name)) {
+                    const username = prompt("Enter name:");
+                    if (username) socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
                 }
                 isHost = players[0].id === socket.id;
-                const rolesButton = document.getElementById("roles");
-                if (isHost) {
-                    rolesButton.textContent = "Edit Roles";
-                    rolesButton.onclick = function () {
-                        document.getElementById("settingsPopup").style.display = "flex";
-                    };
-                } else {
-                    rolesButton.textContent = "View Roles";
-                    rolesButton.onclick = function () {
-                        document.getElementById("settingsPopup").style.display = "flex";
-                    };
-                }
+                document.getElementById("roles").textContent = isHost ? "Edit Roles" : "View Roles";
+                document.getElementById("roles").onclick = () => document.getElementById("settingsPopup").style.display = "flex";
                 updateRolesUI(updatedRoles);
                 updateStartGameButtonState(updatedRoles);
             });
-
-            // Add the gameStart event handler here
-            socket.on('gameStart', (assignedRoles) => {
-                console.log("gameStart event handler is running!");
-                console.log("gameStart event received:", assignedRoles);
-                console.log("My socket.id:", socket.id);
-
-                // Debug: Check if the gameScreen element exists
-                const gameScreen = document.getElementById('gameScreen');
-                if (!gameScreen) {
-                    console.error("gameScreen element not found!");
-                    return;
-                }
-
-                // Debug: Check if the lobby element exists
-                const lobby = document.getElementById('lobby');
-                if (!lobby) {
-                    console.error("lobby element not found!");
-                    return;
-                }
-
-                // Hide the lobby and show the game screen
-                lobby.style.display = 'none';
-                gameScreen.style.display = 'block';
-
-                // Debug: Check if the player's role is assigned
-                const myRoleTechnical = assignedRoles[socket.id];
-                if (!myRoleTechnical) {
-                    console.error("No role assigned for this player!");
-                    return;
-                }
-
-                const roleDisplayNames = {
-                    "werewolf-1": "Werewolf",
-                    "werewolf-2": "Werewolf",
-                    "alpha-wolf": "Alpha Wolf",
-                    "mystic-wolf": "Mystic Wolf",
-                    "dream-wolf": "Dream Wolf",
-                    "minion": "Minion",
-                    "squire": "Squire",
-                    "tanner": "Tanner",
-                    "apprentice-tanner": "Apprentice Tanner",
-                    "executioner": "Executioner",
-                    "villager-1": "Villager",
-                    "villager-2": "Villager",
-                    "villager-3": "Villager",
-                    "seer": "Seer",
-                    "apprentice-seer": "Apprentice Seer",
-                    "troublemaker": "Troublemaker",
-                    "gremlin": "Gremlin",
-                    "paranormal-investigator": "Paranormal Investigator",
-                    "robber": "Robber",
-                    "witch": "Witch",
-                    "drunk": "Drunk",
-                    "insomniac": "Insomniac"
-                };
-
-                const myRoleDisplayName = roleDisplayNames[myRoleTechnical] || myRoleTechnical;
-                document.getElementById('gameMessage').textContent = `Your role is: ${myRoleDisplayName}`;
-
-                // Optional: Display all player roles (for testing)
-                const playerRoleDisplay = document.getElementById('playerRoleDisplay');
-                playerRoleDisplay.innerHTML = '';
-                for (const playerId in assignedRoles) {
-                    const playerTechnicalRole = assignedRoles[playerId];
-                    const playerDisplayName = roleDisplayNames[playerTechnicalRole] || playerTechnicalRole;
-                    playerRoleDisplay.innerHTML += `<p>${playerId}: ${playerDisplayName}</p>`;
-                }
+            socket.on('gameStart', assignedRoles => {
+                document.getElementById('lobby').style.display = 'none';
+                document.getElementById('gameScreen').style.display = 'block';
+                document.getElementById('gameMessage').textContent = `Your role: ${{
+                    "werewolf-1": "Werewolf", "werewolf-2": "Werewolf", "alpha-wolf": "Alpha Wolf", "mystic-wolf": "Mystic Wolf",
+                    "dream-wolf": "Dream Wolf", "minion": "Minion", "squire": "Squire", "tanner": "Tanner", "apprentice-tanner": "Apprentice Tanner",
+                    "executioner": "Executioner", "villager-1": "Villager", "villager-2": "Villager", "villager-3": "Villager", "seer": "Seer",
+                    "apprentice-seer": "Apprentice Seer", "troublemaker": "Troublemaker", "gremlin": "Gremlin", "paranormal-investigator": "Paranormal Investigator",
+                    "robber": "Robber", "witch": "Witch", "drunk": "Drunk", "insomniac": "Insomniac"
+                }[assignedRoles[socket.id]] || assignedRoles[socket.id]}`;
             });
-
-            // Update roles UI
             function updateRolesUI(roles) {
-                document.querySelectorAll('.role').forEach(roleElement => {
-                    const roleName = roleElement.getAttribute('data-role');
-                    const isSelected = roles.includes(roleName);
-
-                    roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
-
-                    if (isSelected) {
-                        roleElement.classList.add('selected');
-                        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(roleName)) {
-                            roleElement.classList.add('evil');
-                        } else if (["tanner", "apprentice-tanner", "executioner"].includes(roleName)) {
-                            roleElement.classList.add('neutral');
-                        } else {
-                            roleElement.classList.add('good');
-                        }
+                document.querySelectorAll('.role').forEach(role => {
+                    role.classList.remove('selected', 'evil', 'good', 'neutral');
+                    if (roles.includes(role.dataset.role)) {
+                        role.classList.add('selected');
+                        if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role.dataset.role)) role.classList.add('evil');
+                        else if (["tanner", "apprentice-tanner", "executioner"].includes(role.dataset.role)) role.classList.add('neutral');
+                        else role.classList.add('good');
                     }
-
-                    if (!isHost) {
-                        roleElement.classList.add('disabled');
-                    } else {
-                        roleElement.classList.remove('disabled');
-                    }
+                    role.classList[isHost ? 'remove' : 'add']('disabled');
                 });
             }
-
             function updateStartGameButtonState(updatedRoles) {
-                const rolesRequired = playerCount + 3;
-                const selectedRolesCount = Object.keys(updatedRoles).length;
-                const startGameButton = document.getElementById("startGameButton");
-                startGameButton.disabled = !(isHost && selectedRolesCount === rolesRequired);
+                document.getElementById("startGameButton").disabled = !(isHost && Object.keys(updatedRoles).length === playerCount + 3);
             }
-
-            document.getElementById("closePopup").addEventListener("click", function() {
-                document.getElementById("settingsPopup").style.display = "none";
-            });
-
-            document.querySelectorAll(".role").forEach(function(role) {
-                role.addEventListener("click", function() {
-                    if (!isHost) return;
-
-                    // Toggle the selected class
-                    role.classList.toggle("selected");
-
-                    // Get the updated list of selected roles
-                    const selectedRoles = Array.from(document.querySelectorAll(".role.selected")).map(role => role.dataset.role);
-
-                    // Emit the updated roles to the server
-                    socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
-                });
-            });
-
-            document.getElementById("startGameButton").addEventListener("click", function() {
-                socket.emit("startGame", { roomCode: currentRoom });
-            });
+            document.getElementById("closePopup").addEventListener("click", () => document.getElementById("settingsPopup").style.display = "none");
+            document.querySelectorAll(".role").forEach(role => role.addEventListener("click", () => {
+                if (!isHost) return;
+                role.classList.toggle("selected");
+                socket.emit('updateRoles', { roomCode: currentRoom, roles: Array.from(document.querySelectorAll(".role.selected")).map(r => r.dataset.role) });
+            }));
+            document.getElementById("startGameButton").addEventListener("click", () => socket.emit("startGame", { roomCode: currentRoom }));
         });
     </script>
 </body>
