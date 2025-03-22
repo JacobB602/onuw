@@ -156,7 +156,7 @@ io.on('connection', (socket) => {
 
         if (rooms[roomCode].currentRoleIndex >= rooms[roomCode].gameRoleTurnOrder.length) {
             const playerCount = rooms[roomCode].players.length;
-            const duration = playerCount * 5;
+            const duration = playerCount * 15;
 
             const roleOrder = rooms[roomCode].gameRoleTurnOrder;
             io.to(roomCode).emit('dayPhase', { duration, roleOrder });
@@ -184,7 +184,7 @@ io.on('connection', (socket) => {
 
         io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
 
-        let timer = 3;
+        let timer = 15;
         const intervalId = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
@@ -294,6 +294,34 @@ io.on('connection', (socket) => {
             }
         }
     }
+
+    socket.on('playAgain', (roomCode) => {
+        if (!rooms[roomCode]) return;
+
+        if (!rooms[roomCode].playAgainPlayers) {
+            rooms[roomCode].playAgainPlayers = {};
+        }
+
+        rooms[roomCode].playAgainPlayers[socket.id] = true;
+
+        // Check if all players want to play again
+        const allPlayAgain = rooms[roomCode].players.every(player =>
+            rooms[roomCode].playAgainPlayers[player.id]
+        );
+
+        if (allPlayAgain) {
+            // Reset room state for a new game
+            rooms[roomCode].confirmedPlayers = {};
+            rooms[roomCode].assignedRoles = {};
+            rooms[roomCode].votes = {};
+            rooms[roomCode].playAgainPlayers = {};
+            rooms[roomCode].nightPhaseActive = false;
+            rooms[roomCode].currentRoleIndex = 0;
+            rooms[roomCode].turnIntervals = {};
+
+            io.to(roomCode).emit('allPlayAgain'); // Notify all players that the game is resetting
+        }
+    });
 
     // Handle disconnects
     socket.on('disconnect', () => {

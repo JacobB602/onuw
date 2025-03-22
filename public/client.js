@@ -480,52 +480,49 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.error("votingButtonsDiv element not found.");
             }
-        });
-    
-        // Listen for voting results
-        socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
-            const votingResultsDiv = document.createElement('div');
-            votingResultsDiv.innerHTML = `
-                <h2>Voting Results</h2>
-                <p>Player with most votes: ${votedPlayerId}</p>
-                <p>Votes: ${JSON.stringify(votes)}</p>
-                <p>Winning Team: ${winningTeam}</p>
-            `;
-            document.getElementById('votingButtons').appendChild(votingResultsDiv);
-        });
+        }); 
     }
+
+    socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
+        // Display the voting result and game outcome.
+        socket.emit('requestPlayerList', currentRoom);
+        socket.on('playerList', (players) => {
+            const votedPlayerName = players.find(p => p.id === votedPlayerId)?.name || 'Unnamed';
+    
+            let votesDisplay = '<h2>Vote Counts:</h2>';
+            for (const playerId in votes) {
+                const playerName = players.find(p => p.id === playerId)?.name || 'Unnamed';
+                votesDisplay += `<p>${playerName}: ${votes[playerId]}</p>`;
+            }
+    
+            const gameScreen = document.getElementById('gameScreen'); // Get the gameScreen element
+    
+            if (gameScreen) { // Check if gameScreen exists
+                gameScreen.innerHTML = `
+                    <h1>Voting Result</h1>
+                    <p>The player voted out was: ${votedPlayerName}</p>
+                    ${votesDisplay}
+                    <p>Winning Team: ${winningTeam}</p>
+                `;
+    
+                // Add Play Again button to the gameScreen
+                const playAgainButton = document.createElement('button');
+                playAgainButton.textContent = 'Play Again';
+                playAgainButton.addEventListener('click', () => {
+                    socket.emit('playAgain', currentRoom);
+                    playAgainButton.disabled = true; // Disable the button after clicking
+                });
+                gameScreen.appendChild(playAgainButton);
+            } else {
+                console.error("gameScreen element not found when trying to display voting results.");
+            }
+        });
+    });
     
     socket.on('endVotingPhase', (roomCode) => {
         console.log("Client: endVotingPhase event received.");
         socket.emit('endVotingPhase', roomCode);
     });
-    
-socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
-    // Display the voting result and game outcome.
-    socket.emit('requestPlayerList', currentRoom);
-    socket.on('playerList', (players) => {
-        const votedPlayerName = players.find(p => p.id === votedPlayerId)?.name || 'Unnamed';
-
-        let votesDisplay = '<h2>Vote Counts:</h2>';
-        for (const playerId in votes) {
-            const playerName = players.find(p => p.id === playerId)?.name || 'Unnamed';
-            votesDisplay += `<p>${playerName}: ${votes[playerId]}</p>`;
-        }
-
-        const gameScreen = document.getElementById('gameScreen'); // Get the gameScreen element
-
-        if (gameScreen) { // Check if gameScreen exists
-            gameScreen.innerHTML = `
-                <h1>Voting Result</h1>
-                <p>The player voted out was: ${votedPlayerName}</p>
-                ${votesDisplay}
-                <p>Winning Team: ${winningTeam}</p>
-            `;
-        } else {
-            console.error("gameScreen element not found when trying to display voting results.");
-        }
-    });
-});
 
     socket.on('connect', () => {
         console.log("Socket.io connected!");
