@@ -34,7 +34,7 @@ io.on('connection', (socket) => {
         console.log(`User ${socket.id} is trying to join room ${roomCode}`);
 
         if (!rooms[roomCode]) {
-            rooms[roomCode] = { players: [], roles: [], confirmedPlayers: {}, assignedRoles: {} };
+            rooms[roomCode] = { players: [], roles: [], confirmedPlayers: {}, assignedRoles: {}, votes: {} };
         }
 
         // Join the room
@@ -178,7 +178,7 @@ io.on('connection', (socket) => {
         if (rooms[roomCode].currentRoleIndex >= rooms[roomCode].gameRoleTurnOrder.length) {
             // Calculate duration based on player count
             const playerCount = rooms[roomCode].players.length;
-            const duration = playerCount * 60; // 1 minute per player
+            const duration = playerCount * 5; // 1 minute per player
     
             const roleOrder = rooms[roomCode].gameRoleTurnOrder;
             io.to(roomCode).emit('dayPhase', { duration, roleOrder });
@@ -207,7 +207,7 @@ io.on('connection', (socket) => {
     
         io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
     
-        // Start 15 second timer
+        // Start 3 second timer
         let timer = 3;
         const intervalId = setInterval(() => {
             timer--;
@@ -252,6 +252,89 @@ io.on('connection', (socket) => {
             }
         }, 1000);
     });
+
+    socket.on('endDayPhase', (roomCode) => {
+        if (!rooms[roomCode]) return;
+        rooms[roomCode].votes = {}; // Initialize votes
+        io.to(roomCode).emit('endDayPhase');
+    });
+
+    socket.on('requestPlayerList', (roomCode) => {
+        if (!rooms[roomCode]) return;
+        io.to(socket.id).emit('playerList', rooms[roomCode].players);
+    });
+
+    socket.on('castVote', ({ roomCode, votedPlayerId }) => {
+        if (!rooms[roomCode]) return;
+        if (!rooms[roomCode].votes) {
+            rooms[roomCode].votes = {};
+        }
+    
+        rooms[roomCode].votes[votedPlayerId] = (rooms[roomCode].votes[votedPlayerId] || 0) + 1;
+    
+        console.log(`Room ${roomCode}: Vote cast - ${socket.id} voted for ${votedPlayerId}`);
+        console.log(`Room ${roomCode}: Current votes -`, rooms[roomCode].votes);
+    
+        // Check if all players have voted
+        const playerCount = rooms[roomCode].players.length;
+        let allVoted = true;
+    
+        for (const player of rooms[roomCode].players) {
+            if (!rooms[roomCode].votes[player.id]) {
+                allVoted = false;
+                break;
+            }
+        }
+    
+        console.log(`Room ${roomCode}: Player count - ${playerCount}, All players voted - ${allVoted}`);
+    
+        if (allVoted) {
+            console.log(`Room ${roomCode}: All players voted. Ending voting phase.`);
+            io.to(roomCode).emit('endVotingPhase', roomCode);
+        }
+    });
+    
+    socket.on('endVotingPhase', (roomCode) => {
+        if (!rooms[roomCode]) return;
+    
+        // Determine the player with the most votes
+        let maxVotes = 0;
+        let votedPlayerId;
+        for (const playerId in rooms[roomCode].votes) {
+            if (rooms[roomCode].votes[playerId] > maxVotes) {
+                maxVotes = rooms[roomCode].votes[playerId];
+                votedPlayerId = playerId;
+            }
+        }
+    
+        // Determine the winner (logic based on your game rules)
+        let winningTeam = determineWinner(rooms[roomCode].assignedRoles, votedPlayerId, rooms[roomCode].players);
+    
+        // Notify all players of the voting result and game outcome
+        io.to(roomCode).emit('votingResult', { votedPlayerId, votes: rooms[roomCode].votes, winningTeam: winningTeam });
+    });
+
+    function determineWinner(assignedRoles, votedPlayerId, players) {
+        const votedPlayerRole = assignedRoles[votedPlayerId];
+        const werewolfRoles = ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"];
+        const tannerRoles = ["tanner", "apprentice-tanner"];
+
+        if (werewolfRoles.includes(votedPlayerRole)) {
+            // Werewolf was voted out. Villagers win unless Tanner wins.
+            if (tannerRoles.some(tannerRole => Object.values(assignedRoles).includes(tannerRole))) {
+                return "Tanner";
+            } else {
+                return "Villagers";
+            }
+        } else {
+            // Werewolf was not voted out. Werewolves win unless Tanner wins.
+            if (tannerRoles.some(tannerRole => Object.values(assignedRoles).includes(tannerRole))) {
+                return "Tanner";
+            } else {
+                return "Werewolves";
+            }
+        }
+    }
 
     // Handle disconnects
     socket.on('disconnect', () => {

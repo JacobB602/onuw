@@ -399,9 +399,97 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     socket.on('endDayPhase', () => {
-        document.getElementById('gameScreen').innerHTML = '<h1>Day Phase Over</h1><p>Time to vote!</p>';
-        // Add voting UI here
+        console.log("Voting phase started!");
+        const gameScreen = document.getElementById('gameScreen');
+        if (gameScreen) {
+            gameScreen.style.display = 'block';
+            gameScreen.innerHTML = '<h1>Voting Phase</h1><p>Vote for who you think is the werewolf!</p><div id="votingButtons"></div>';
+    
+            // Remove the mini card
+            const miniCardWrapper = document.querySelector('.mini-card-wrapper');
+            if (miniCardWrapper) {
+                miniCardWrapper.remove();
+            }
+    
+            // Call addVotingUI directly after creating the div
+            addVotingUI();
+        } else {
+            console.error("gameScreen element not found during endDayPhase.");
+            return;
+        }
     });
+    
+    function addVotingUI() {
+        // Request player list here
+        socket.emit('requestPlayerList', currentRoom);
+    
+        socket.once('playerList', (players) => { // Use socket.once to ensure the event listener is removed after first execution
+            const votingButtonsDiv = document.getElementById('votingButtons');
+            if (votingButtonsDiv) {
+                votingButtonsDiv.innerHTML = '';
+                players.forEach(player => {
+                    if (player.id !== socket.id) {
+                        const voteButton = document.createElement('button');
+                        voteButton.textContent = player.name || 'Unnamed';
+                        voteButton.style.display = 'block';
+                        voteButton.style.margin = '10px auto';
+                        voteButton.style.width = '200px';
+                        voteButton.style.padding = '10px 20px';
+                        voteButton.style.backgroundColor = '#87CEEB';
+                        voteButton.style.border = '1px solid #4682B4';
+                        voteButton.style.borderRadius = '5px';
+                        voteButton.style.boxShadow = '2px 2px 5px rgba(0, 0, 0, 0.2)';
+                        voteButton.addEventListener('click', () => {
+                            socket.emit('castVote', { roomCode: currentRoom, votedPlayerId: player.id });
+                            console.log(`Client: Vote cast for ${player.id}`);
+                            players.forEach(p => {
+                                const button = Array.from(document.querySelectorAll('#votingButtons button')).find(b => b.textContent === (p.name || 'Unnamed'));
+                                if (button) {
+                                    button.style.boxShadow = p.id === player.id ? '4px 4px 8px rgba(0, 0, 0, 0.4)' : '2px 2px 5px rgba(0, 0, 0, 0.2)';
+                                    button.style.backgroundColor = p.id === player.id ? '#4682B4' : '#87CEEB';
+                                }
+                            });
+                        });
+                        votingButtonsDiv.appendChild(voteButton);
+                    }
+                });
+            } else {
+                console.error("votingButtonsDiv element not found.");
+            }
+        });
+    }
+    
+    socket.on('endVotingPhase', (roomCode) => {
+        console.log("Client: endVotingPhase event received.");
+        socket.emit('endVotingPhase', roomCode);
+    });
+    
+socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
+    // Display the voting result and game outcome.
+    socket.emit('requestPlayerList', currentRoom);
+    socket.on('playerList', (players) => {
+        const votedPlayerName = players.find(p => p.id === votedPlayerId)?.name || 'Unnamed';
+
+        let votesDisplay = '<h2>Vote Counts:</h2>';
+        for (const playerId in votes) {
+            const playerName = players.find(p => p.id === playerId)?.name || 'Unnamed';
+            votesDisplay += `<p>${playerName}: ${votes[playerId]}</p>`;
+        }
+
+        const gameScreen = document.getElementById('gameScreen'); // Get the gameScreen element
+
+        if (gameScreen) { // Check if gameScreen exists
+            gameScreen.innerHTML = `
+                <h1>Voting Result</h1>
+                <p>The player voted out was: ${votedPlayerName}</p>
+                ${votesDisplay}
+                <p>Winning Team: ${winningTeam}</p>
+            `;
+        } else {
+            console.error("gameScreen element not found when trying to display voting results.");
+        }
+    });
+});
 
     socket.on('connect', () => {
         console.log("Socket.io connected!");
