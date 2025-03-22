@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let playerCount = 0;
     let roles = {};
     let confirmButton;
+    let originalRoleCard;
 
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
@@ -187,23 +188,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         document.getElementById('gameMessage').textContent = `Your role is: ${myRole}`;
     
-        // Trigger the card flip animation
-        const card = document.getElementById('card');
-    
         // Create and append the button
-        confirmButton = document.createElement("button");
+        const confirmButton = document.createElement("button");
         confirmButton.textContent = "Confirm Role";
         confirmButton.addEventListener("click", confirmRole);
     
-        console.log("gameScreen element:", document.getElementById("gameScreen")); // Add this line
-        console.log("confirmButton element:", confirmButton); // Add this line
+        console.log("gameScreen element:", document.getElementById("gameScreen"));
+        console.log("confirmButton element:", confirmButton);
     
-        document.getElementById("gameScreen").appendChild(confirmButton);
+        gameScreen.appendChild(confirmButton);
     
-        console.log("Button appended successfully."); // Add this line
+        console.log("Button appended successfully.");
     
         // Optional: Add some styling to the button to make it more visible
-        confirmButton.style.marginTop = "20px"; // Add some space between the card and the button
+        confirmButton.style.marginTop = "20px";
         confirmButton.style.padding = "10px 20px";
         confirmButton.style.fontSize = "16px";
     });
@@ -237,7 +235,58 @@ document.addEventListener('DOMContentLoaded', function() {
     
     socket.on('startNightPhase', () => {
         document.getElementById("gameScreen").innerHTML = "<h1>Night Phase</h1><p>Night phase is starting.</p>";
-        // Add night phase UI here
+        originalRoleCard = document.createElement("div");
+        originalRoleCard.id = "originalRoleCard";
+        originalRoleCard.textContent = `Original Role: ${assignedRoles[socket.id]}`;
+        document.body.appendChild(originalRoleCard);
+    
+        // ADD the center cards creation and appending here
+        const centerCardsDiv = document.createElement('div');
+        centerCardsDiv.id = 'centerCards';
+        centerCardsDiv.innerHTML = `
+            <div class="card" id="center1">Center 1</div>
+            <div class="card" id="center2">Center 2</div>
+            <div class="card" id="center3">Center 3</div>
+        `;
+        document.getElementById("gameScreen").appendChild(centerCardsDiv);
+    });
+    
+    socket.on('nightTurn', ({ currentRole, currentPlayer }) => {
+        const gameScreen = document.getElementById("gameScreen");
+        gameScreen.innerHTML = `<h1>Night Phase</h1><p>${currentRole}'s turn.</p>`;
+    
+        if (currentPlayer === socket.id) {
+            gameScreen.innerHTML += `<p>It's your turn. Take your action.</p><button id="completeTurn">Complete Turn</button><div id="turnTimerDisplay">15</div>`; // Add timer display
+            const completeTurnButton = document.getElementById("completeTurn");
+            completeTurnButton.addEventListener("click", () => {
+                socket.emit('nightActionComplete', { roomCode: currentRoom });
+            });
+    
+            // Play audio alert
+            const audio = new Audio('turn_alert.wav'); // Replace with your audio file
+            audio.play();
+        } else {
+            gameScreen.innerHTML += `<p>Waiting for another player to complete their action.</p><div id="turnTimerDisplay">15</div>`; // Add timer display
+        }
+    });
+    
+    socket.on('turnTimer', ({ timer }) => {
+        const timerDisplay = document.getElementById("turnTimerDisplay");
+        if (timerDisplay) {
+            timerDisplay.textContent = timer;
+        }
+    
+        const completeTurnButton = document.getElementById("completeTurn");
+        if (completeTurnButton) {
+            completeTurnButton.disabled = timer > 0;
+        }
+    });
+    
+    socket.on('startDayPhase', () => {
+        document.getElementById("gameScreen").innerHTML = "<h1>Day Phase</h1><p>Day phase is starting.</p>";
+        if (originalRoleCard) {
+            originalRoleCard.remove();
+        }
     });
 
     socket.on('connect', () => {

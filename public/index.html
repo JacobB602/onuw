@@ -38,6 +38,37 @@
         .card:hover { transform: scale(1.05); transition: transform 0.2s ease-in-out; }
         #joinRoom { margin-left: 5px;}
         #startGameButton { margin-top: 10px;}
+        #originalRoleCard {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: #444;
+            color: #fff;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #centerCards {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        #centerCards .card {
+            width: 100px;
+            height: 150px;
+            background: #333;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 5px;
+        }
+        #turnTimerDisplay {
+            font-size: 2em;
+            font-weight: bold;
+            color: #ff9800;
+            margin-top: 10px;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
 </head>
