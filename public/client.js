@@ -420,13 +420,19 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     function addVotingUI() {
-        // Request player list here
+        let selectedVote = null;
+        let timer = 15; // 15 seconds voting time
+    
+        const timerDisplay = document.createElement('div');
+        timerDisplay.id = 'turnTimerDisplay';
+        timerDisplay.textContent = `Time remaining: ${timer}s`;
+        document.getElementById('votingButtons').appendChild(timerDisplay);
+    
         socket.emit('requestPlayerList', currentRoom);
     
-        socket.once('playerList', (players) => { // Use socket.once to ensure the event listener is removed after first execution
+        socket.once('playerList', (players) => {
             const votingButtonsDiv = document.getElementById('votingButtons');
             if (votingButtonsDiv) {
-                votingButtonsDiv.innerHTML = '';
                 players.forEach(player => {
                     if (player.id !== socket.id) {
                         const voteButton = document.createElement('button');
@@ -440,8 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         voteButton.style.borderRadius = '5px';
                         voteButton.style.boxShadow = '2px 2px 5px rgba(0, 0, 0, 0.2)';
                         voteButton.addEventListener('click', () => {
-                            socket.emit('castVote', { roomCode: currentRoom, votedPlayerId: player.id });
-                            console.log(`Client: Vote cast for ${player.id}`);
+                            selectedVote = player.id;
                             players.forEach(p => {
                                 const button = Array.from(document.querySelectorAll('#votingButtons button')).find(b => b.textContent === (p.name || 'Unnamed'));
                                 if (button) {
@@ -453,9 +458,40 @@ document.addEventListener('DOMContentLoaded', function() {
                         votingButtonsDiv.appendChild(voteButton);
                     }
                 });
+    
+                const countdown = setInterval(() => {
+                    timer--;
+                    timerDisplay.textContent = `Time remaining: ${timer}s`;
+                    if (timer <= 0) {
+                        clearInterval(countdown);
+                        if (selectedVote) {
+                            socket.emit('castVote', { roomCode: currentRoom, votedPlayerId: selectedVote });
+                            console.log(`Client: Vote cast for ${selectedVote}`);
+                        }
+                        // Remove timer display and voting buttons
+                        timerDisplay.remove();
+                        const allButtons = document.querySelectorAll('#votingButtons button');
+                        allButtons.forEach(button => button.remove());
+    
+                        // Request voting results
+                        socket.emit('endVotingPhase', currentRoom);
+                    }
+                }, 1000);
             } else {
                 console.error("votingButtonsDiv element not found.");
             }
+        });
+    
+        // Listen for voting results
+        socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
+            const votingResultsDiv = document.createElement('div');
+            votingResultsDiv.innerHTML = `
+                <h2>Voting Results</h2>
+                <p>Player with most votes: ${votedPlayerId}</p>
+                <p>Votes: ${JSON.stringify(votes)}</p>
+                <p>Winning Team: ${winningTeam}</p>
+            `;
+            document.getElementById('votingButtons').appendChild(votingResultsDiv);
         });
     }
     
