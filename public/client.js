@@ -544,12 +544,15 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </ul>
                             </div>
                         `;
-    
+                
                         // Add event listeners for player selection
                         document.querySelectorAll('.selectPlayer').forEach(button => {
                             button.addEventListener('click', () => {
                                 const playerId = button.getAttribute('data-player-id');
                                 socket.emit('robberAction', { roomCode: currentRoom, target: playerId });
+                
+                                // Disable all buttons after selection to prevent multiple clicks
+                                document.querySelectorAll('.selectPlayer').forEach(btn => btn.disabled = true);
                             });
                         });
                     });

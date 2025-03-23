@@ -197,14 +197,25 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
+        // Check if the Robber has already stolen a role
+        if (room.assignedRoles[socket.id].startsWith('stolen-')) {
+            console.log(`Robber ${socket.id} has already stolen a role.`);
+            io.to(socket.id).emit('error', { message: "You can only steal one role per game." });
+            return;
+        }
+    
         // Swap roles between the Robber and the target player
         const robberRole = room.assignedRoles[socket.id];
         const targetRole = room.assignedRoles[target];
-        room.assignedRoles[socket.id] = targetRole;
+        room.assignedRoles[socket.id] = `stolen-${targetRole}`; // Mark the role as stolen
         room.assignedRoles[target] = robberRole;
     
         // Notify the Robber of their new role
         io.to(socket.id).emit('robberResult', { newRole: targetRole });
+    
+        // Move to the next role's turn
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
     });
 
     socket.on('troublemakerAction', ({ roomCode, targets }) => {
