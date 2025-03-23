@@ -159,55 +159,100 @@ io.on('connection', (socket) => {
         nextRoleTurn(roomCode);
     });
 
+    // Role-specific action handlers
+    socket.on('seerAction', ({ roomCode, target }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        const targetRole = room.assignedRoles[target];
+        io.to(socket.id).emit('seerResult', { targetRole });
+    
+        // Do NOT move to the next role or end the timer here
+        // The timer will continue running until it expires naturally
+    });
+    
+    socket.on('mysticWolfAction', ({ roomCode, target }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        const targetRole = room.assignedRoles[target];
+        io.to(socket.id).emit('mysticWolfResult', { targetRole });
+    
+        // Do NOT move to the next role or end the timer here
+        // The timer will continue running until it expires naturally
+    });
+
+    socket.on('robberAction', ({ roomCode, target }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Swap roles
+        const robberRole = room.assignedRoles[socket.id];
+        const targetRole = room.assignedRoles[target];
+        room.assignedRoles[socket.id] = targetRole;
+        room.assignedRoles[target] = robberRole;
+    
+        // Notify the Robber of their new role
+        io.to(socket.id).emit('robberResult', { newRole: targetRole });
+    
+        // Do NOT move to the next role or end the timer here
+        // The timer will continue running until it expires naturally
+    });
+
     function nextRoleTurn(roomCode) {
-        if (!rooms[roomCode]) return;
-        if (!rooms[roomCode].nightPhaseActive) return;
-
-        if (rooms[roomCode].currentRoleIndex >= rooms[roomCode].gameRoleTurnOrder.length) {
-            const playerCount = rooms[roomCode].players.length;
-            const duration = playerCount * 5;
-
-            const roleOrder = rooms[roomCode].gameRoleTurnOrder;
-            io.to(roomCode).emit('dayPhase', { duration, roleOrder });
-
-            let timer = duration;
-            const intervalId = setInterval(() => {
-                timer--;
-                io.to(roomCode).emit('dayTimer', { timer });
-                if (timer <= 0) {
-                    clearInterval(intervalId);
-                    io.to(roomCode).emit('endDayPhase');
-                }
-            }, 1000);
+        const room = rooms[roomCode];
+        if (!room || !room.nightPhaseActive) {
+            console.log("Night phase is not active or room does not exist.");
             return;
         }
-
-        const currentRole = rooms[roomCode].gameRoleTurnOrder[rooms[roomCode].currentRoleIndex];
-        const currentPlayer = rooms[roomCode].players.find(player => rooms[roomCode].assignedRoles[player.id] === currentRole);
-
-        if (currentPlayer && currentPlayer.id.startsWith("center")) {
-            rooms[roomCode].currentRoleIndex++;
-            nextRoleTurn(roomCode);
+    
+        console.log(`Current role index: ${room.currentRoleIndex}, Total roles: ${room.gameRoleTurnOrder.length}`);
+    
+        // Skip roles with no actions
+        const noActionRoles = ['tanner', 'villager-1', 'villager-2', 'villager-3'];
+        while (room.currentRoleIndex < room.gameRoleTurnOrder.length) {
+            const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
+            if (!noActionRoles.includes(currentRole)) break;
+            console.log(`Skipping role: ${currentRole}`);
+            room.currentRoleIndex++;
+        }
+    
+        console.log(`After skipping no-action roles, current role index: ${room.currentRoleIndex}`);
+    
+        // Check if all roles have completed their turns
+        if (room.currentRoleIndex >= room.gameRoleTurnOrder.length) {
+            console.log("All roles completed. Starting day phase.");
+            room.nightPhaseActive = false; // Mark night phase as inactive
+            io.to(roomCode).emit('startDayPhase'); // Notify clients to start the day phase
             return;
         }
-
+    
+        // Get the current role and player
+        const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
+        const currentPlayer = room.players.find(player => room.assignedRoles[player.id] === currentRole);
+    
+        console.log(`Current role: ${currentRole}, Current player: ${currentPlayer ? currentPlayer.id : 'None'}`);
+    
+        // Emit the nightTurn event with the current role and player
         io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
-
-        let timer = 3;
+    
+        // Start the timer for the current role's turn
+        let timer = 15; // 15 seconds per turn
         const intervalId = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
+    
             if (timer <= 0) {
+                console.log(`Timer ended for role: ${currentRole}`);
                 clearInterval(intervalId);
-                rooms[roomCode].currentRoleIndex++;
-                nextRoleTurn(roomCode);
+                room.currentRoleIndex++; // Move to the next role
+                nextRoleTurn(roomCode); // Process the next role's turn
             }
         }, 1000);
-
-        if (!rooms[roomCode].turnIntervals) {
-            rooms[roomCode].turnIntervals = {};
-        }
-        rooms[roomCode].turnIntervals[currentRole] = intervalId;
+    
+        // Store the interval ID so it can be cleared if the action is completed early
+        if (!room.turnIntervals) room.turnIntervals = {};
+        room.turnIntervals[currentRole] = intervalId;
     }
 
     socket.on('nightActionComplete', ({ roomCode }) => {
@@ -235,6 +280,14 @@ io.on('connection', (socket) => {
                 io.to(roomCode).emit('endDayPhase');
             }
         }, 1000);
+    });
+
+    socket.on('requestDayPhaseDuration', (roomCode) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        const duration = room.players.length * 60; // 1 minute per player
+        io.to(roomCode).emit('dayPhase', { duration, roleOrder: room.gameRoleTurnOrder });
     });
 
     socket.on('endDayPhase', (roomCode) => {

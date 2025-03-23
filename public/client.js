@@ -1,6 +1,6 @@
 console.log("client.js file loaded and executing!");
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log("DOMContentLoaded event listener added!");
     let socket;
     if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -46,6 +46,76 @@ document.addEventListener('DOMContentLoaded', function() {
         // Add other roles as needed
     };
 
+    // Show the name submission modal when joining a room
+    document.getElementById("joinRoom").addEventListener("click", function () {
+        const roomCode = document.getElementById("roomCode").value.trim();
+        if (!roomCode) {
+            alert("Please enter a room code!");
+            return;
+        }
+        currentRoom = roomCode;
+        socket.emit('joinRoom', { roomCode });
+
+        // Show the name submission modal
+        const nameModal = document.getElementById('nameModal');
+        nameModal.style.display = 'flex'; // Show the modal
+    });
+
+    // Handle name submission
+    function handleSubmitName() {
+        const usernameInput = document.getElementById('usernameInput');
+        const username = usernameInput.value.trim();
+
+        // Debugging: Log the username and its length
+        console.log("Username:", username, "Length:", username.length);
+
+        if (username && username.length > 0) {
+            console.log("Username is valid:", username);
+            socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
+
+            // Hide the modal
+            const nameModal = document.getElementById('nameModal');
+            nameModal.style.display = 'none';
+
+            // Clear the input field
+            usernameInput.value = '';
+        } else {
+            console.log("Username is invalid or empty!");
+            alert("Please enter a valid name!");
+            return; // Prevent further execution
+        }
+    }
+
+    // Attach the submitName event listener
+    const submitNameButton = document.getElementById('submitName');
+    submitNameButton.addEventListener('click', (event) => {
+        event.preventDefault(); // Prevent form submission (if applicable)
+        event.stopPropagation(); // Stop event propagation
+        console.log("Submit button clicked!"); // Debugging
+        handleSubmitName(); // Call the submit logic
+    });
+
+    // Close modal when clicking outside of it
+    const nameModal = document.getElementById('nameModal');
+    nameModal.addEventListener('click', (event) => {
+        if (event.target === nameModal) {
+            nameModal.style.display = 'none';
+        }
+    });
+
+    // Submit name when pressing Enter
+    document.getElementById('usernameInput').addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent form submission (if applicable)
+            console.log("Enter key pressed!"); // Debugging
+            handleSubmitName(); // Call the submit logic directly
+        }
+    });
+
+    // Add fade-in animation to the modal
+    const modalContent = document.querySelector('#nameModal .modal-content');
+    modalContent.style.animation = 'fadeIn 0.3s ease-in-out';
+
     function getRoleAlignment(role) {
         if (["werewolf-1", "werewolf-2", "minion", "squire", "alpha-wolf", "mystic-wolf", "dream-wolf"].includes(role)) {
             return 'evil';
@@ -69,6 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Show the name submission modal when joining a room
     document.getElementById("joinRoom").addEventListener("click", function() {
         const roomCode = document.getElementById("roomCode").value.trim();
         if (!roomCode) {
@@ -77,18 +148,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         currentRoom = roomCode;
         socket.emit('joinRoom', { roomCode });
-    
-        // Show the lobby (including the join room button and input box)
-        document.getElementById("lobby").style.display = "block";
-    
-        // Hide the game screen (if visible)
-        document.getElementById("gameScreen").style.display = "none";
-    
-        // Prompt for username
-        const username = prompt("Please enter your name:");
-        if (username) {
-            socket.emit('joinRoomWithName', { roomCode: currentRoom, username });
-        }
+
+        // Show the name submission modal
+        const nameModal = document.getElementById('nameModal');
+        nameModal.style.display = 'flex'; // Show the modal
     });
 
     socket.on('roomUpdate', (players, receivedRoles) => {
@@ -322,7 +385,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     socket.on('startNightPhase', () => {
-        document.getElementById("gameScreen").innerHTML = "<h1>Night Phase</h1><p>Night phase is starting.</p>";
+        document.getElementById("gameScreen").innerHTML = `
+            <h1>Night Phase</h1>
+            <p>Night phase is starting.</p>
+            <div id="resultDisplay"></div> <!-- Add this line -->
+        `;
     
         // Remove old card if exists
         if (document.getElementById('originalRoleCard')) {
@@ -373,20 +440,99 @@ document.addEventListener('DOMContentLoaded', function() {
     
     socket.on('nightTurn', ({ currentRole, currentPlayer }) => {
         const gameScreen = document.getElementById("gameScreen");
-        gameScreen.innerHTML = `<h1>Night Phase</h1><p>${roleDisplayNames[currentRole] || currentRole}'s turn.</p>`;    
+        if (gameScreen) {
+            gameScreen.innerHTML = `
+                <h1>Night Phase</h1>
+                <p>${roleDisplayNames[currentRole] || currentRole}'s turn.</p>
+                <div id="resultDisplay"></div> <!-- Add this line -->
+                <div id="turnTimerDisplay">15</div>
+            `;
     
-        if (currentPlayer === socket.id) {
-            gameScreen.innerHTML += `<p>It's your turn. Take your action.</p><button id="completeTurn">Complete Turn</button><div id="turnTimerDisplay">15</div>`; // Add timer display
-            const completeTurnButton = document.getElementById("completeTurn");
-            completeTurnButton.addEventListener("click", () => {
-                socket.emit('nightActionComplete', { roomCode: currentRoom });
-            });
+            if (currentPlayer === socket.id) {
+                if (currentRole === 'seer') {
+                    // Seer's turn: Allow them to choose a player or center card
+                    gameScreen.innerHTML += `
+                        <p>It's your turn. Choose a player or center card to view:</p>
+                        <div id="seerOptions">
+                            <button id="viewPlayer">View a Player's Card</button>
+                            <button id="viewCenter">View a Center Card</button>
+                        </div>
+                    `;
     
-            // Play audio alert
-            const audio = new Audio('big_dog.ogg'); // Replace with your audio file
-            audio.play();
-        } else {
-            gameScreen.innerHTML += `<p>Waiting for another player to complete their action.</p><div id="turnTimerDisplay">15</div>`; // Add timer display
+                    // Add event listeners for Seer's options
+                    document.getElementById('viewPlayer').addEventListener('click', () => {
+                        // Show a list of players to choose from
+                        socket.emit('requestPlayerList', currentRoom);
+                        socket.once('playerList', (players) => {
+                            gameScreen.innerHTML += `
+                                <div id="playerSelection">
+                                    <h3>Select a Player:</h3>
+                                    <ul>
+                                        ${players.map(player => `
+                                            <li>
+                                                <button class="selectPlayer" data-player-id="${player.id}">
+                                                    ${player.name || "Unnamed"}
+                                                </button>
+                                            </li>
+                                        `).join('')}
+                                    </ul>
+                                </div>
+                            `;
+    
+                            // Add event listeners for player selection
+                            document.querySelectorAll('.selectPlayer').forEach(button => {
+                                button.addEventListener('click', () => {
+                                    const playerId = button.getAttribute('data-player-id');
+                                    socket.emit('seerAction', { roomCode: currentRoom, target: playerId });
+                                });
+                            });
+                        });
+                    });
+    
+                    document.getElementById('viewCenter').addEventListener('click', () => {
+                        // Show a list of center cards to choose from
+                        gameScreen.innerHTML += `
+                            <div id="centerSelection">
+                                <h3>Select a Center Card:</h3>
+                                <ul>
+                                    <li><button class="selectCenter" data-center="center1">Center 1</button></li>
+                                    <li><button class="selectCenter" data-center="center2">Center 2</button></li>
+                                    <li><button class="selectCenter" data-center="center3">Center 3</button></li>
+                                </ul>
+                            </div>
+                        `;
+    
+                        // Add event listeners for center card selection
+                        document.querySelectorAll('.selectCenter').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const centerCard = button.getAttribute('data-center');
+                                socket.emit('seerAction', { roomCode: currentRoom, target: centerCard });
+                            });
+                        });
+                    });
+                }
+            }
+        }
+    });
+    
+    socket.on('seerResult', ({ targetRole }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        if (resultDisplay) {
+            resultDisplay.textContent = `The role you viewed is: ${roleDisplayNames[targetRole] || targetRole}`;
+        }
+    });
+    
+    socket.on('mysticWolfResult', ({ targetRole }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        if (resultDisplay) {
+            resultDisplay.textContent = `The role you viewed is: ${roleDisplayNames[targetRole] || targetRole}`;
+        }
+    });
+    
+    socket.on('robberResult', ({ newRole }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        if (resultDisplay) {
+            resultDisplay.textContent = `You stole a role! Your new role is: ${roleDisplayNames[newRole] || newRole}`;
         }
     });
     
@@ -402,32 +548,55 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    socket.on('dayPhase', ({ duration, roleOrder }) => { // Corrected event name
-        document.getElementById('gameScreen').innerHTML = `
-            <h1>Day Phase</h1>
-            <p>Day phase is starting. Discuss!</p>
-            <div id="dayTimerDisplay">${duration}</div>
-            <div id="roleOrderDisplay">
-                <h3>Role Order:</h3>
-                <ul>${roleOrder.map(role => `<li>${roleDisplayNames[role] || role}</li>`).join('')}</ul>
-            </div>
-        `;
+    socket.on('startDayPhase', () => {
+        console.log("Day phase is starting!");
+        const gameScreen = document.getElementById('gameScreen');
+        if (gameScreen) {
+            gameScreen.innerHTML = `
+                <h1>Day Phase</h1>
+                <p>Discuss and vote for who you think is the werewolf!</p>
+                <div id="dayTimerDisplay">00:00</div> <!-- Timer will be updated dynamically -->
+            `;
     
-        if (originalRoleCard) {
-            originalRoleCard.remove();
+            // Fetch the duration from the server (1 minute per player)
+            socket.emit('requestDayPhaseDuration', currentRoom);
+        }
+    });
+
+    socket.on('dayPhase', ({ duration, roleOrder }) => {
+        console.log("Day phase is starting with duration:", duration);
+        const gameScreen = document.getElementById('gameScreen');
+        if (gameScreen) {
+            gameScreen.innerHTML = `
+                <h1>Day Phase</h1>
+                <p>Discuss and vote for who you think is the werewolf!</p>
+                <div id="dayTimerDisplay">${formatTime(duration)}</div>
+                <div id="roleOrderDisplay">
+                    <h3>Role Order:</h3>
+                    <ul>${roleOrder.map(role => `<li>${roleDisplayNames[role] || role}</li>`).join('')}</ul>
+                </div>
+            `;
+    
+            // Start the day phase timer using the server-provided duration
+            let timer = duration;
+            const intervalId = setInterval(() => {
+                timer--;
+                document.getElementById('dayTimerDisplay').textContent = formatTime(timer);
+    
+                if (timer <= 0) {
+                    clearInterval(intervalId);
+                    socket.emit('endDayPhase', currentRoom); // Notify the server that the day phase has ended
+                }
+            }, 1000);
         }
     });
     
-    socket.on('dayTimer', ({ timer }) => {
-        const minutes = Math.floor(timer / 60);
-        const seconds = timer % 60;
-        const formattedTime = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-    
-        const timerDisplay = document.getElementById('dayTimerDisplay');
-        if (timerDisplay) {
-            timerDisplay.textContent = formattedTime;
-        }
-    });
+    // Helper function to format time as MM:SS
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    }
 
     socket.on('endDayPhase', () => {
         console.log("Voting phase started!");

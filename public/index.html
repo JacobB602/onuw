@@ -322,6 +322,58 @@
             border: 2px solid rgb(0, 60, 200);
             box-shadow: 0 0 5px rgba(0, 89, 255, 0.7);
         }
+        /* Name Submission Modal Styles */
+        #nameModal {
+            display: none; /* Hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background */
+            justify-content: center;
+            align-items: center;
+        }
+
+        #nameModal .modal-content {
+            background-color: #2c2c2c;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+            width: 300px;
+            text-align: center;
+        }
+
+        #nameModal h2 {
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        #nameModal input {
+            width: 80%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+            background: #3c3c3c;
+            color: #fff;
+        }
+
+        #nameModal button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #nameModal button:hover {
+            background-color: #45a049;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
     <script src="client.js"></script>
@@ -359,6 +411,14 @@
                     <div class="role single-option" data-role="seer">Seer</div><div class="role single-option" data-role="apprentice-seer">Apprentice Seer</div><div class="role single-option" data-role="troublemaker">Troublemaker</div><div class="role single-option" data-role="gremlin">Gremlin</div><div class="role single-option" data-role="paranormal-investigator">Paranormal Investigator</div><div class="role single-option" data-role="robber">Robber</div><div class="role single-option" data-role="witch">Witch</div><div class="role single-option" data-role="drunk">Drunk</div><div class="role single-option" data-role="insomniac">Insomniac</div>
                 </div><br><button id="closePopup">Close</button>
             </div>
+        </div>
+    </div>
+    <!-- Name Submission Modal -->
+    <div id="nameModal" class="modal">
+        <div class="modal-content">
+            <h2>Enter Your Name</h2>
+            <input type="text" id="usernameInput" placeholder="Your name" />
+            <button id="submitName">Submit</button>
         </div>
     </div>
 </body>
