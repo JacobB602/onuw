@@ -444,31 +444,36 @@ document.addEventListener('DOMContentLoaded', function () {
             gameScreen.innerHTML = `
                 <h1>Night Phase</h1>
                 <p>${roleDisplayNames[currentRole] || currentRole}'s turn.</p>
-                <div id="resultDisplay"></div> <!-- Add this line -->
+                <div id="resultDisplay"></div>
                 <div id="turnTimerDisplay">15</div>
             `;
     
             if (currentPlayer === socket.id) {
                 if (currentRole === 'seer') {
-                    // Seer's turn: Allow them to choose a player or center card
+                    let seerActionTaken = false;
+                    let centerCardsViewed = [];
+    
+                    // Add buttons for Seer's options
                     gameScreen.innerHTML += `
-                        <p>It's your turn. Choose a player or center card to view:</p>
+                        <p>It's your turn. Choose an action:</p>
                         <div id="seerOptions">
                             <button id="viewPlayer">View a Player's Card</button>
-                            <button id="viewCenter">View a Center Card</button>
+                            <button id="viewCenter">View 2 Center Cards</button>
                         </div>
                     `;
     
-                    // Add event listeners for Seer's options
+                    // Handle "View a Player's Card" option
                     document.getElementById('viewPlayer').addEventListener('click', () => {
-                        // Show a list of players to choose from
+                        if (seerActionTaken) return;
+    
+                        // Request the list of players
                         socket.emit('requestPlayerList', currentRoom);
                         socket.once('playerList', (players) => {
                             gameScreen.innerHTML += `
                                 <div id="playerSelection">
                                     <h3>Select a Player:</h3>
                                     <ul>
-                                        ${players.map(player => `
+                                        ${players.filter(player => player.id !== socket.id).map(player => `
                                             <li>
                                                 <button class="selectPlayer" data-player-id="${player.id}">
                                                     ${player.name || "Unnamed"}
@@ -484,16 +489,19 @@ document.addEventListener('DOMContentLoaded', function () {
                                 button.addEventListener('click', () => {
                                     const playerId = button.getAttribute('data-player-id');
                                     socket.emit('seerAction', { roomCode: currentRoom, target: playerId });
+                                    seerActionTaken = true;
                                 });
                             });
                         });
                     });
     
+                    // Handle "View 2 Center Cards" option
                     document.getElementById('viewCenter').addEventListener('click', () => {
-                        // Show a list of center cards to choose from
+                        if (seerActionTaken) return;
+    
                         gameScreen.innerHTML += `
                             <div id="centerSelection">
-                                <h3>Select a Center Card:</h3>
+                                <h3>Select 2 Center Cards:</h3>
                                 <ul>
                                     <li><button class="selectCenter" data-center="center1">Center 1</button></li>
                                     <li><button class="selectCenter" data-center="center2">Center 2</button></li>
@@ -506,7 +514,69 @@ document.addEventListener('DOMContentLoaded', function () {
                         document.querySelectorAll('.selectCenter').forEach(button => {
                             button.addEventListener('click', () => {
                                 const centerCard = button.getAttribute('data-center');
-                                socket.emit('seerAction', { roomCode: currentRoom, target: centerCard });
+                                centerCardsViewed.push(centerCard);
+                                button.disabled = true;
+                        
+                                if (centerCardsViewed.length === 2) {
+                                    socket.emit('seerAction', { roomCode: currentRoom, target: centerCardsViewed });
+                                    seerActionTaken = true;
+                                } else {
+                                    document.querySelector("#centerSelection h3").textContent = `Select ${2 - centerCardsViewed.length} Center Cards:`;
+                                }
+                            });
+                        });
+                    });
+                } else if (currentRole === 'robber') {
+                    // Robber's turn: Allow them to choose a player to rob
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        gameScreen.innerHTML += `
+                            <p>Choose a player to rob:</p>
+                            <div id="robberOptions">
+                                <ul>
+                                    ${players.filter(player => player.id !== socket.id).map(player => `
+                                        <li>
+                                            <button class="selectPlayer" data-player-id="${player.id}">
+                                                ${player.name || "Unnamed"}
+                                            </button>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
+    
+                        // Add event listeners for player selection
+                        document.querySelectorAll('.selectPlayer').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const playerId = button.getAttribute('data-player-id');
+                                socket.emit('robberAction', { roomCode: currentRoom, target: playerId });
+                            });
+                        });
+                    });
+                } else if (currentRole === 'mystic-wolf') {
+                    // Mystic Wolf's turn: Allow them to choose a player to view
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        gameScreen.innerHTML += `
+                            <p>Choose a player to view their role:</p>
+                            <div id="mysticWolfOptions">
+                                <ul>
+                                    ${players.filter(player => player.id !== socket.id).map(player => `
+                                        <li>
+                                            <button class="selectPlayer" data-player-id="${player.id}">
+                                                ${player.name || "Unnamed"}
+                                            </button>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
+    
+                        // Add event listeners for player selection
+                        document.querySelectorAll('.selectPlayer').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const playerId = button.getAttribute('data-player-id');
+                                socket.emit('mysticWolfAction', { roomCode: currentRoom, target: playerId });
                             });
                         });
                     });
@@ -518,7 +588,17 @@ document.addEventListener('DOMContentLoaded', function () {
     socket.on('seerResult', ({ targetRole }) => {
         const resultDisplay = document.getElementById('resultDisplay');
         if (resultDisplay) {
-            resultDisplay.textContent = `The role you viewed is: ${roleDisplayNames[targetRole] || targetRole}`;
+            if (Array.isArray(targetRole)) {
+                // Handle center card results
+                if (targetRole.length === 2) {
+                    resultDisplay.textContent = `Center Card 1: ${roleDisplayNames[targetRole[0]] || targetRole[0]}, Center Card 2: ${roleDisplayNames[targetRole[1]] || targetRole[1]}`;
+                } else {
+                    resultDisplay.textContent = "Error: Invalid number of center card roles received.";
+                }
+            } else {
+                // Handle player role result
+                resultDisplay.textContent = `The role you viewed is: ${roleDisplayNames[targetRole] || targetRole}`;
+            }
         }
     });
     

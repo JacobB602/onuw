@@ -159,34 +159,46 @@ io.on('connection', (socket) => {
         nextRoleTurn(roomCode);
     });
 
-    // Role-specific action handlers
     socket.on('seerAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const targetRole = room.assignedRoles[target];
-        io.to(socket.id).emit('seerResult', { targetRole });
-    
-        // Do NOT move to the next role or end the timer here
-        // The timer will continue running until it expires naturally
+        if (Array.isArray(target)) {
+            // Handle center card selection
+            const centerRoles = target.map(centerCard => room.assignedRoles[centerCard]);
+            io.to(socket.id).emit('seerResult', { targetRole: centerRoles });
+        } else {
+            // Handle player selection
+            const playerRole = room.assignedRoles[target];
+            io.to(socket.id).emit('seerResult', { targetRole: playerRole });
+        }
     });
     
     socket.on('mysticWolfAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
+        // Get the target player's role
         const targetRole = room.assignedRoles[target];
+        if (!targetRole) {
+            console.log(`Invalid target player: ${target}`);
+            io.to(socket.id).emit('error', { message: "Invalid player selected." });
+            return;
+        }
+    
+        // Send the result back to the Mystic Wolf
         io.to(socket.id).emit('mysticWolfResult', { targetRole });
     
-        // Do NOT move to the next role or end the timer here
-        // The timer will continue running until it expires naturally
+        // Move to the next role's turn
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
     });
 
     socket.on('robberAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        // Swap roles
+        // Swap roles between the Robber and the target player
         const robberRole = room.assignedRoles[socket.id];
         const targetRole = room.assignedRoles[target];
         room.assignedRoles[socket.id] = targetRole;
@@ -194,9 +206,6 @@ io.on('connection', (socket) => {
     
         // Notify the Robber of their new role
         io.to(socket.id).emit('robberResult', { newRole: targetRole });
-    
-        // Do NOT move to the next role or end the timer here
-        // The timer will continue running until it expires naturally
     });
 
     function nextRoleTurn(roomCode) {
