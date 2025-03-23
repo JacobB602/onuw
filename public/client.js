@@ -571,15 +571,55 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </ul>
                             </div>
                         `;
-    
+                
                         // Add event listeners for player selection
                         document.querySelectorAll('.selectPlayer').forEach(button => {
                             button.addEventListener('click', () => {
                                 const playerId = button.getAttribute('data-player-id');
                                 socket.emit('mysticWolfAction', { roomCode: currentRoom, target: playerId });
+                
+                                // Disable all buttons after selection to prevent multiple clicks
+                                document.querySelectorAll('.selectPlayer').forEach(btn => btn.disabled = true);
                             });
                         });
                     });
+                } else if (currentRole === 'troublemaker') {
+                    // Troublemaker's turn: Allow them to swap two players' roles
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        gameScreen.innerHTML += `
+                            <p>Choose two players to swap their roles:</p>
+                            <div id="troublemakerOptions">
+                                <ul>
+                                    ${players.filter(player => player.id !== socket.id).map(player => `
+                                        <li>
+                                            <button class="selectPlayer" data-player-id="${player.id}">
+                                                ${player.name || "Unnamed"}
+                                            </button>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                        `;
+    
+                        let selectedPlayers = [];
+                        document.querySelectorAll('.selectPlayer').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const playerId = button.getAttribute('data-player-id');
+                                selectedPlayers.push(playerId);
+                                button.disabled = true;
+    
+                                if (selectedPlayers.length === 2) {
+                                    socket.emit('troublemakerAction', { roomCode: currentRoom, targets: selectedPlayers });
+                                } else {
+                                    document.querySelector("#troublemakerOptions p").textContent = `Select ${2 - selectedPlayers.length} more player(s):`;
+                                }
+                            });
+                        });
+                    });
+                } else if (currentRole === 'insomniac') {
+                    // Insomniac's turn: Show their current role
+                    socket.emit('insomniacAction', { roomCode: currentRoom });
                 }
             }
         }
@@ -613,6 +653,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const resultDisplay = document.getElementById('resultDisplay');
         if (resultDisplay) {
             resultDisplay.textContent = `You stole a role! Your new role is: ${roleDisplayNames[newRole] || newRole}`;
+        }
+    });
+
+    socket.on('troublemakerResult', ({ message }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        if (resultDisplay) {
+            resultDisplay.textContent = message;
+        }
+    });
+
+    socket.on('insomniacResult', ({ role }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        if (resultDisplay) {
+            resultDisplay.textContent = `Your current role is: ${roleDisplayNames[role] || role}`;
         }
     });
     

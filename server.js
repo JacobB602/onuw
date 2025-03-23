@@ -189,9 +189,8 @@ io.on('connection', (socket) => {
         // Send the result back to the Mystic Wolf
         io.to(socket.id).emit('mysticWolfResult', { targetRole });
     
-        // Move to the next role's turn
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
+        // Do NOT move to the next role's turn here
+        // The timer will continue running until it expires naturally
     });
 
     socket.on('robberAction', ({ roomCode, target }) => {
@@ -206,6 +205,51 @@ io.on('connection', (socket) => {
     
         // Notify the Robber of their new role
         io.to(socket.id).emit('robberResult', { newRole: targetRole });
+    });
+
+    socket.on('troublemakerAction', ({ roomCode, targets }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Validate that exactly two players are selected
+        if (targets.length !== 2) {
+            console.log(`Invalid number of players selected: ${targets.length}`);
+            io.to(socket.id).emit('error', { message: "You must select exactly two players." });
+            return;
+        }
+    
+        // Swap the roles of the selected players
+        const [player1, player2] = targets;
+        const tempRole = room.assignedRoles[player1];
+        room.assignedRoles[player1] = room.assignedRoles[player2];
+        room.assignedRoles[player2] = tempRole;
+    
+        // Notify the Troublemaker of the successful swap
+        io.to(socket.id).emit('troublemakerResult', { message: "Roles swapped successfully!" });
+    
+        // Move to the next role's turn
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
+    socket.on('insomniacAction', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Get the Insomniac's current role
+        const insomniacRole = room.assignedRoles[socket.id];
+        if (!insomniacRole) {
+            console.log(`Invalid role for Insomniac: ${socket.id}`);
+            io.to(socket.id).emit('error', { message: "Unable to retrieve your role." });
+            return;
+        }
+    
+        // Send the Insomniac's role back to them
+        io.to(socket.id).emit('insomniacResult', { role: insomniacRole });
+    
+        // Move to the next role's turn
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
     });
 
     function nextRoleTurn(roomCode) {
