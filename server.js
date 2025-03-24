@@ -306,10 +306,6 @@ io.on('connection', (socket) => {
         io.to(socket.id).emit('drunkResult', { 
             message: `You swapped with ${targetCenter}` 
         });
-    
-        // Move to next turn
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('piAction', ({ roomCode, target }) => {
