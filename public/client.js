@@ -1282,8 +1282,11 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("Voting phase started!");
         const gameScreen = document.getElementById('gameScreen');
         if (gameScreen) {
-            gameScreen.style.display = 'block';
-            gameScreen.innerHTML = '<h1>Voting Phase</h1><p>Vote for who you think is the werewolf!</p><div id="votingButtons"></div>';
+            gameScreen.innerHTML = `
+                <h1>Voting Phase</h1>
+                <p>Vote for who you think is the werewolf!</p>
+                <div id="votingButtons"></div>
+            `;
     
             // Remove the mini card
             const miniCardWrapper = document.querySelector('.mini-card-wrapper');
@@ -1303,64 +1306,64 @@ document.addEventListener('DOMContentLoaded', function () {
         let selectedVote = null;
         let timer = 15; // 15 seconds voting time
     
+        // Clear any existing voting UI
+        const votingButtonsDiv = document.getElementById('votingButtons');
+        if (!votingButtonsDiv) return;
+        votingButtonsDiv.innerHTML = '';
+    
+        // Add timer display
         const timerDisplay = document.createElement('div');
         timerDisplay.id = 'turnTimerDisplay';
         timerDisplay.textContent = `Time remaining: ${timer}s`;
-        document.getElementById('votingButtons').appendChild(timerDisplay);
+        votingButtonsDiv.appendChild(timerDisplay);
     
-        socket.emit('requestPlayerList', currentRoom);
+        // Create a one-time listener for player list
+        const handlePlayerList = (players) => {
+            // Remove this listener after it's used
+            socket.off('playerList', handlePlayerList);
     
-        socket.once('playerList', (players) => {
-            const votingButtonsDiv = document.getElementById('votingButtons');
-            if (votingButtonsDiv) {
-                players.forEach(player => {
-                    if (player.id !== socket.id) {
-                        const voteButton = document.createElement('button');
-                        voteButton.textContent = player.name || 'Unnamed';
-                        voteButton.style.display = 'block';
-                        voteButton.style.margin = '10px auto';
-                        voteButton.style.width = '200px';
-                        voteButton.style.padding = '10px 20px';
-                        voteButton.style.backgroundColor = '#87CEEB';
-                        voteButton.style.border = '1px solid #4682B4';
-                        voteButton.style.borderRadius = '5px';
-                        voteButton.style.boxShadow = '2px 2px 5px rgba(0, 0, 0, 0.2)';
-                        voteButton.addEventListener('click', () => {
-                            selectedVote = player.id;
-                            players.forEach(p => {
-                                const button = Array.from(document.querySelectorAll('#votingButtons button')).find(b => b.textContent === (p.name || 'Unnamed'));
-                                if (button) {
-                                    button.style.boxShadow = p.id === player.id ? '4px 4px 8px rgba(0, 0, 0, 0.4)' : '2px 2px 5px rgba(0, 0, 0, 0.2)';
-                                    button.style.backgroundColor = p.id === player.id ? '#4682B4' : '#87CEEB';
-                                }
-                            });
-                        });
-                        votingButtonsDiv.appendChild(voteButton);
-                    }
+            // Filter out current player and duplicates
+            const uniquePlayers = players.reduce((acc, player) => {
+                if (player.id !== socket.id && !acc.some(p => p.id === player.id)) {
+                    acc.push(player);
+                }
+                return acc;
+            }, []);
+    
+            uniquePlayers.forEach(player => {
+                const voteButton = document.createElement('button');
+                voteButton.textContent = player.name || 'Unnamed';
+                voteButton.dataset.playerId = player.id;
+                voteButton.className = 'vote-button';
+                
+                voteButton.addEventListener('click', () => {
+                    selectedVote = player.id;
+                    // Highlight selected button
+                    document.querySelectorAll('.vote-button').forEach(btn => {
+                        btn.style.backgroundColor = btn.dataset.playerId === selectedVote ? '#4682B4' : '#87CEEB';
+                    });
                 });
+                votingButtonsDiv.appendChild(voteButton);
+            });
     
-                const countdown = setInterval(() => {
-                    timer--;
-                    timerDisplay.textContent = `Time remaining: ${timer}s`;
-                    if (timer <= 0) {
-                        clearInterval(countdown);
-                        if (selectedVote) {
-                            socket.emit('castVote', { roomCode: currentRoom, votedPlayerId: selectedVote });
-                            console.log(`Client: Vote cast for ${selectedVote}`);
-                        }
-                        // Remove timer display and voting buttons
-                        timerDisplay.remove();
-                        const allButtons = document.querySelectorAll('#votingButtons button');
-                        allButtons.forEach(button => button.remove());
-    
-                        // Request voting results
-                        socket.emit('endVotingPhase', currentRoom);
+            const countdown = setInterval(() => {
+                timer--;
+                timerDisplay.textContent = `Time remaining: ${timer}s`;
+                
+                if (timer <= 0) {
+                    clearInterval(countdown);
+                    if (selectedVote) {
+                        socket.emit('castVote', { roomCode: currentRoom, votedPlayerId: selectedVote });
                     }
-                }, 1000);
-            } else {
-                console.error("votingButtonsDiv element not found.");
-            }
-        }); 
+                    // Request voting results
+                    socket.emit('endVotingPhase', currentRoom);
+                }
+            }, 1000);
+        };
+    
+        // Set up the one-time listener
+        socket.once('playerList', handlePlayerList);
+        socket.emit('requestPlayerList', currentRoom);
     }
 
     socket.on('votingResult', ({ votedPlayerId, votes, winningTeam, roleReveal, centerCards }) => {
