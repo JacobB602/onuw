@@ -22,7 +22,7 @@ app.get('/', (req, res) => {
 
 const rooms = {};
 const roleTurnOrder = [
-    "dream-wolf", "tanner", "villager-1", "villager-2", "villager-3", "werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "minion", "apprentice-tanner",  "executioner",
+    "dream-wolf", "tanner", "villager-1", "villager-2", "villager-3", "werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "minion", "apprentice-tanner",  "sentinel",
     "seer", "apprentice-seer", "paranormal-investigator", "robber", "witch", "troublemaker", "gremlin", "drunk", "insomniac", "squire",
 ];
 
@@ -109,7 +109,7 @@ io.on('connection', (socket) => {
 
         console.log("Starting game in room", roomCode, "...");
 
-        rooms[roomCode].assignedRoles = assignRoles(room.players, room.roles);
+        rooms[roomCode].assignedRoles = assignRoles(roomCode, room.players, room.roles);
 
         console.log("Assigned roles:", rooms[roomCode].assignedRoles);
 
@@ -120,7 +120,8 @@ io.on('connection', (socket) => {
         rooms[roomCode].gameRoleTurnOrder = roleTurnOrder.filter(role => Object.values(rooms[roomCode].assignedRoles).includes(role));
     });
 
-    function assignRoles(players, roles) {
+    // Track starting roles separately
+    function assignRoles(roomCode, players, roles) {
         const shuffledRoles = [...roles].sort(() => 0.5 - Math.random());
         const assignedRoles = {};
 
@@ -131,6 +132,14 @@ io.on('connection', (socket) => {
         assignedRoles["center1"] = shuffledRoles[players.length];
         assignedRoles["center2"] = shuffledRoles[players.length + 1];
         assignedRoles["center3"] = shuffledRoles[players.length + 2];
+
+        // Store starting roles
+        rooms[roomCode].startingRoles = {...assignedRoles};
+        rooms[roomCode].assignedRoles = {...assignedRoles}; // Current roles may change
+
+        if (roles.includes('serpent')) {
+            rooms[roomCode].serpentDeceptions = {};
+        }
 
         return assignedRoles;
     }
@@ -212,10 +221,6 @@ io.on('connection', (socket) => {
     
         // Notify the Robber of their new role
         io.to(socket.id).emit('robberResult', { newRole: targetRole });
-    
-        // Move to the next role's turn
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('troublemakerAction', ({ roomCode, targets }) => {
@@ -237,10 +242,6 @@ io.on('connection', (socket) => {
     
         // Notify the Troublemaker of the successful swap
         io.to(socket.id).emit('troublemakerResult', { message: "Roles swapped successfully!" });
-    
-        // Move to the next role's turn
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('insomniacAction', ({ roomCode }) => {
@@ -257,33 +258,35 @@ io.on('connection', (socket) => {
     
         // Send the Insomniac's role back to them
         io.to(socket.id).emit('insomniacResult', { role: insomniacRole });
-    
-        // Move to the next role's turn
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
-    socket.on('witchAction', ({ roomCode, action, target }) => {
+    socket.on('witchViewAction', ({ roomCode, centerCard }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        if (action === 'view') {
-            // Witch views a center card
-            const centerRole = room.assignedRoles[target];
-            io.to(socket.id).emit('witchViewResult', { centerRole, centerCard: target });
-        } else if (action === 'swap') {
-            // Witch swaps with a center card
-            const witchRole = room.assignedRoles[socket.id];
-            const centerRole = room.assignedRoles[target];
-            
-            room.assignedRoles[socket.id] = centerRole;
-            room.assignedRoles[target] = witchRole;
-            
-            io.to(socket.id).emit('witchSwapResult', { 
-                message: `You swapped with ${target}! Your new role is ${centerRole}`
-            });
-        }
+        const cardRole = getShownRole(room, centerCard);
+        io.to(socket.id).emit('witchViewResult', { 
+            centerCard: centerCard,
+            centerRole: cardRole 
+        });
+    });
     
+    socket.on('witchGiveAction', ({ roomCode, centerCard, targetPlayer }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Perform the swap
+        const centerRole = room.assignedRoles[centerCard];
+        const playerRole = room.assignedRoles[targetPlayer];
+        
+        room.assignedRoles[centerCard] = playerRole;
+        room.assignedRoles[targetPlayer] = centerRole;
+    
+        io.to(socket.id).emit('witchGiveResult', { 
+            message: `You gave ${centerCard} to ${room.players.find(p => p.id === targetPlayer)?.name || "Unknown"}` 
+        });
+    
+        // Advance turn
         room.currentRoleIndex++;
         nextRoleTurn(roomCode);
     });
@@ -302,9 +305,6 @@ io.on('connection', (socket) => {
         io.to(socket.id).emit('drunkResult', { 
             message: `You are now ${centerRole} (but you don't know it yet!)` 
         });
-    
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('piAction', ({ roomCode, target }) => {
@@ -312,7 +312,7 @@ io.on('connection', (socket) => {
         if (!room || !room.nightPhaseActive) return;
     
         const targetRole = room.assignedRoles[target];
-        const isWerewolf = ['werewolf-1', 'werewolf-2', 'alpha-wolf', 'mystic-wolf', 'dream-wolf']
+        const isWerewolf = ['werewolf-1', 'werewolf-2', 'serpent', 'mystic-wolf', 'dream-wolf']
             .includes(targetRole);
     
         if (isWerewolf) {
@@ -356,9 +356,6 @@ io.on('connection', (socket) => {
         io.to(socket.id).emit('gremlinResult', { 
             message: "Roles swapped successfully!"
         });
-    
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('minionAction', ({ roomCode }) => {
@@ -367,7 +364,7 @@ io.on('connection', (socket) => {
     
         // Identify all werewolves
         const werewolves = room.players.filter(player => 
-            ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"]
+            ["werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "dream-wolf"]
             .includes(room.assignedRoles[player.id])
         ).map(w => w.name || "Unnamed");
     
@@ -378,27 +375,99 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('squireAction', ({ roomCode, action }) => {
+    socket.on('squireAction', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        if (action === 'verify') {
-            // Get current werewolves
-            const currentWerewolves = room.players.filter(player => 
-                ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"]
-                .includes(room.assignedRoles[player.id])
-            ).map(w => w.name || "Unnamed");
+        // Get current werewolves (including original and any converted)
+        const currentWerewolves = room.players.filter(player => 
+            ["werewolf-1", "werewolf-2", "mystic-wolf", "dream-wolf", "serpent"]
+            .includes(room.assignedRoles[player.id])
+        ).map(w => ({
+            name: w.name || "Unnamed",
+            originalRole: room.originalRoles?.[w.id] || room.assignedRoles[w.id]
+        }));
     
-            io.to(socket.id).emit('squireResult', { 
-                werewolves: currentWerewolves,
-                noWerewolves: currentWerewolves.length === 0
+        // Immediately send the result to the Squire
+        io.to(socket.id).emit('squireResult', { 
+            werewolves: currentWerewolves,
+            noWerewolves: currentWerewolves.length === 0
+        });
+    
+        // Don't advance turn here - let the timer handle it
+    });
+
+    socket.on('apprenticeTannerAction', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Find the Tanner in this game
+        const tannerPlayer = room.players.find(player => 
+            ['tanner', 'apprentice-tanner'].includes(room.assignedRoles[player.id])
+        );
+    
+        if (tannerPlayer) {
+            // Send the Tanner's name to the Apprentice Tanner
+            io.to(socket.id).emit('apprenticeTannerResult', {
+                hasTanner: true,
+                tannerName: tannerPlayer.name || "Unnamed",
+                isSelf: tannerPlayer.id === socket.id
+            });
+        } else {
+            // No Tanner in the game
+            io.to(socket.id).emit('apprenticeTannerResult', {
+                hasTanner: false
             });
         }
-    
-        // Squire always completes turn after verifying
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
+
+    socket.on('apprenticeSeerAction', ({ roomCode, card }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Get the role from the selected center card (checking for serpent deceptions)
+        const cardRole = getShownRole(room, card);
+        
+        // Send the result back to the Apprentice Seer
+        io.to(socket.id).emit('apprenticeSeerResult', {
+            card: card,
+            role: cardRole
+        });
+    });
+
+    socket.on('serpentAction', ({ roomCode, targets }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Get all possible roles in game
+        const allRoles = [...new Set([...room.roles, ...Object.values(room.assignedRoles)])];
+    
+        // Initialize serpentDeceptions if it doesn't exist
+        if (!room.serpentDeceptions) {
+            room.serpentDeceptions = {};
+        }
+    
+        targets.forEach(target => {
+            if (!room.serpentDeceptions[target]) {
+                // Store the actual role and a random disguised role
+                room.serpentDeceptions[target] = {
+                    actual: room.assignedRoles[target],
+                    shown: allRoles[Math.floor(Math.random() * allRoles.length)]
+                };
+            }
+        });
+    
+        // Notify the serpent that the action was successful
+        io.to(socket.id).emit('serpentResult', { targets });
+    });
+
+    function getShownRole(room, target) {
+        // Check if this card has been disguised by the serpent
+        if (room.serpentDeceptions && room.serpentDeceptions[target]) {
+            return room.serpentDeceptions[target].shown;
+        }
+        return room.assignedRoles[target];
+    }
 
     socket.on('viewCenterCard', ({ roomCode, card }) => {
         const room = rooms[roomCode];
@@ -414,14 +483,11 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room || !room.nightPhaseActive) return;
     
-        // Clear previous timers and listeners
-        if (room.currentTimer) {
-            clearInterval(room.currentTimer);
-            room.currentTimer = null;
-        }
+        // Clear previous timer
+        if (room.currentTimer) clearInterval(room.currentTimer);
     
         // Skip no-action roles
-        const noActionRoles = ['villager-1', 'villager-2', 'villager-3'];
+        const noActionRoles = ['villager-1', 'villager-2', 'villager-3', 'tanner', 'dream-wolf'];
         while (room.currentRoleIndex < room.gameRoleTurnOrder.length && 
                noActionRoles.includes(room.gameRoleTurnOrder[room.currentRoleIndex])) {
             room.currentRoleIndex++;
@@ -434,14 +500,17 @@ io.on('connection', (socket) => {
         }
     
         const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
-        const currentPlayers = room.players.filter(p => room.assignedRoles[p.id] === currentRole);
+        
+        // Find players who STARTED as this role
+        const currentPlayers = room.players.filter(p => 
+            room.startingRoles[p.id] === currentRole
+        );
     
-        // Start new timer
+        // Start timer
         let timer = 15;
         room.currentTimer = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
-    
             if (timer <= 0) {
                 clearInterval(room.currentTimer);
                 room.currentRoleIndex++;
@@ -451,9 +520,10 @@ io.on('connection', (socket) => {
     
         // Notify players
         currentPlayers.forEach(player => {
-            io.to(player.id).emit('nightTurn', { 
+            io.to(player.id).emit('nightTurn', {
                 currentRole: currentRole,
-                currentPlayer: player.id
+                currentPlayer: player.id,
+                isOriginalRole: room.assignedRoles[player.id] === room.startingRoles[player.id]
             });
         });
         
@@ -549,20 +619,16 @@ io.on('connection', (socket) => {
     });
 
     function determineWinner(assignedRoles, votedPlayerId, players) {
-        const werewolfRoles = ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"];
+        const werewolfRoles = ["werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "dream-wolf"];
         const tannerRoles = ["tanner", "apprentice-tanner"];
-        const executionerRole = "executioner";
         
         // 1. Check if someone was voted out
         const someoneDied = votedPlayerId !== undefined && votedPlayerId !== null;
         const votedPlayerRole = someoneDied ? assignedRoles[votedPlayerId] : null;
     
-        // 2. Check special roles (Tanner/Executioner) - these override everything
+        // 2. Check special roles (Tanner) - these override everything
         if (someoneDied && tannerRoles.includes(votedPlayerRole)) {
             return "Tanner";
-        }
-        if (someoneDied && votedPlayerRole === executionerRole) {
-            return "Executioner";
         }
     
         // 3. Check werewolf presence in the game
