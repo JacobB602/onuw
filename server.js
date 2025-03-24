@@ -601,7 +601,7 @@ io.on('connection', (socket) => {
 
     socket.on('endVotingPhase', (roomCode) => {
         if (!rooms[roomCode]) return;
-
+    
         // Determine the player with the most votes
         let maxVotes = 0;
         let votedPlayerId;
@@ -611,12 +611,33 @@ io.on('connection', (socket) => {
                 votedPlayerId = playerId;
             }
         }
-
-        // Determine the winner (logic based on your game rules)
+    
+        // Determine the winner
         let winningTeam = determineWinner(rooms[roomCode].assignedRoles, votedPlayerId, rooms[roomCode].players);
-
-        // Notify all players of the voting result and game outcome
-        io.to(roomCode).emit('votingResult', { votedPlayerId, votes: rooms[roomCode].votes, winningTeam: winningTeam });
+    
+        // Prepare role reveal data
+        const roleReveal = rooms[roomCode].players.map(player => ({
+            id: player.id,
+            name: player.name || "Unnamed",
+            role: rooms[roomCode].assignedRoles[player.id],
+            originalRole: rooms[roomCode].startingRoles?.[player.id] || rooms[roomCode].assignedRoles[player.id]
+        }));
+    
+        // Add center cards to reveal
+        const centerCards = {
+            center1: rooms[roomCode].assignedRoles["center1"],
+            center2: rooms[roomCode].assignedRoles["center2"],
+            center3: rooms[roomCode].assignedRoles["center3"]
+        };
+    
+        // Notify all players
+        io.to(roomCode).emit('votingResult', { 
+            votedPlayerId, 
+            votes: rooms[roomCode].votes, 
+            winningTeam,
+            roleReveal,
+            centerCards
+        });
     });
 
     function determineWinner(assignedRoles, votedPlayerId, players) {

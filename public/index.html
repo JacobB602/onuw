@@ -398,6 +398,80 @@
             color: #8b4513;
             font-weight: bold;
         }
+
+        /* Role Reveal Styling */
+        .role-reveal-container {
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .role-reveal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .player-role, .center-card {
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .player-role.good, .center-card.good {
+            background: linear-gradient(135deg, rgba(0, 89, 255, 0.2), rgba(0, 60, 200, 0.3));
+            border: 1px solid rgba(0, 60, 200, 0.5);
+        }
+
+        .player-role.evil, .center-card.evil {
+            background: linear-gradient(135deg, rgba(236, 16, 16, 0.2), rgba(180, 12, 12, 0.3));
+            border: 1px solid rgba(180, 12, 12, 0.5);
+        }
+
+        .player-role.neutral, .center-card.neutral {
+            background: linear-gradient(135deg, rgba(255, 165, 0, 0.2), rgba(200, 140, 0, 0.3));
+            border: 1px solid rgba(200, 140, 0, 0.5);
+        }
+
+        .original-role {
+            font-size: 0.8em;
+            color: #666;
+            font-style: italic;
+        }
+
+        .center-cards {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .center-card {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .game-result {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: center;
+        }
+
+        .game-result.villagers {
+            background: rgba(0, 89, 255, 0.2);
+        }
+
+        .game-result.werewolves, .game-result.minion, .game-result.squire {
+            background: rgba(236, 16, 16, 0.2);
+        }
+
+        .game-result.tanner {
+            background: rgba(255, 165, 0, 0.2);
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"></script>
     <script src="client.js"></script>

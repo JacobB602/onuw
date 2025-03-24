@@ -1363,40 +1363,86 @@ document.addEventListener('DOMContentLoaded', function () {
         }); 
     }
 
-    socket.on('votingResult', ({ votedPlayerId, votes, winningTeam }) => {
+    socket.on('votingResult', ({ votedPlayerId, votes, winningTeam, roleReveal, centerCards }) => {
         // Display the voting result and game outcome
-        socket.emit('requestPlayerList', currentRoom);
-        socket.once('playerList', (players) => {
-            const votedPlayerName = players.find(p => p.id === votedPlayerId)?.name || 'Unnamed';
+        const gameScreen = document.getElementById('gameScreen');
+        if (!gameScreen) return;
     
-            let votesDisplay = '<h2>Vote Counts:</h2>';
-            for (const playerId in votes) {
-                const playerName = players.find(p => p.id === playerId)?.name || 'Unnamed';
-                votesDisplay += `<p>${playerName}: ${votes[playerId]}</p>`;
-            }
+        // Find the voted player's name
+        const votedPlayer = roleReveal.find(p => p.id === votedPlayerId);
+        const votedPlayerName = votedPlayer?.name || 'Unnamed';
     
-            const gameScreen = document.getElementById('gameScreen');
-            if (gameScreen) {
-                gameScreen.innerHTML = `
-                    <h1>Voting Result</h1>
-                    <p>The player voted out was: ${votedPlayerName}</p>
-                    ${votesDisplay}
-                    <p>Winning Team: ${winningTeam}</p>
-                    <button id="playAgainButton">Play Again</button>
-                `;
+        // Create votes display
+        let votesDisplay = '<h2>Vote Counts:</h2><ul>';
+        for (const player of roleReveal) {
+            const voteCount = votes[player.id] || 0;
+            votesDisplay += `<li>${player.name}: ${voteCount}</li>`;
+        }
+        votesDisplay += '</ul>';
     
-                // Add event listener for the "Play Again" button
-                const playAgainButton = document.getElementById('playAgainButton');
-                if (playAgainButton) {
-                    playAgainButton.addEventListener('click', () => {
-                        socket.emit('playAgain', currentRoom);
-                        playAgainButton.disabled = true; // Disable the button after clicking
-                    });
-                }
-            } else {
-                console.error("gameScreen element not found when trying to display voting results.");
-            }
+        // Create role reveal display
+        let roleRevealDisplay = `
+            <div class="role-reveal-container">
+                <h2>Final Roles:</h2>
+                <div class="role-reveal-grid">
+        `;
+    
+        // Add player roles
+        roleReveal.forEach(player => {
+            const roleName = roleDisplayNames[player.role] || player.role;
+            const originalRoleName = roleDisplayNames[player.originalRole] || player.originalRole;
+            const roleChanged = player.role !== player.originalRole;
+            
+            roleRevealDisplay += `
+                <div class="player-role ${getRoleAlignment(player.role)}">
+                    <h3>${player.name}</h3>
+                    <p>${roleName}</p>
+                    ${roleChanged ? `<p class="original-role">(Originally ${originalRoleName})</p>` : ''}
+                </div>
+            `;
         });
+    
+        // Add center cards
+        roleRevealDisplay += `
+                </div>
+                <h2>Center Cards:</h2>
+                <div class="center-cards">
+                    <div class="center-card ${getRoleAlignment(centerCards.center1)}">
+                        <p>Center 1:</p>
+                        <p>${roleDisplayNames[centerCards.center1] || centerCards.center1}</p>
+                    </div>
+                    <div class="center-card ${getRoleAlignment(centerCards.center2)}">
+                        <p>Center 2:</p>
+                        <p>${roleDisplayNames[centerCards.center2] || centerCards.center2}</p>
+                    </div>
+                    <div class="center-card ${getRoleAlignment(centerCards.center3)}">
+                        <p>Center 3:</p>
+                        <p>${roleDisplayNames[centerCards.center3] || centerCards.center3}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    
+        // Final display
+        gameScreen.innerHTML = `
+            <h1>Game Over</h1>
+            <div class="game-result ${winningTeam.toLowerCase()}">
+                <h2>${winningTeam} Win${winningTeam === 'Villagers' ? '' : 's'}!</h2>
+                ${votedPlayerId ? `<p>The village voted out: ${votedPlayerName}</p>` : '<p>No one was voted out!</p>'}
+            </div>
+            ${votesDisplay}
+            ${roleRevealDisplay}
+            <button id="playAgainButton">Play Again</button>
+        `;
+    
+        // Add event listener for the "Play Again" button
+        const playAgainButton = document.getElementById('playAgainButton');
+        if (playAgainButton) {
+            playAgainButton.addEventListener('click', () => {
+                socket.emit('playAgain', currentRoom);
+                playAgainButton.disabled = true;
+            });
+        }
     });
     
     socket.on('endVotingPhase', (roomCode) => {
