@@ -295,16 +295,21 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        // Drunk must swap with a center card
+        // Swap roles without telling the Drunk what they got
         const drunkRole = room.assignedRoles[socket.id];
         const centerRole = room.assignedRoles[targetCenter];
         
         room.assignedRoles[socket.id] = centerRole;
         room.assignedRoles[targetCenter] = drunkRole;
         
+        // Just acknowledge the action without revealing the role
         io.to(socket.id).emit('drunkResult', { 
-            message: `You are now ${centerRole} (but you don't know it yet!)` 
+            message: `You swapped with ${targetCenter}` 
         });
+    
+        // Move to next turn
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
     });
 
     socket.on('piAction', ({ roomCode, target }) => {

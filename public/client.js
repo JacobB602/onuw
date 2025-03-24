@@ -713,9 +713,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     });
                 } else if (currentRole === 'drunk') {
-                    // Drunk's turn: Must swap with a center card
+                    // Drunk's turn - must swap with a center card (without seeing it)
                     gameScreen.innerHTML += `
-                        <p>You must swap with a center card (you won't know your new role):</p>
+                        <p>You must swap with a center card (you won't know your new role until morning):</p>
                         <div id="drunkOptions">
                             <button class="selectCenter" data-center="center1">Center 1</button>
                             <button class="selectCenter" data-center="center2">Center 2</button>
@@ -730,6 +730,17 @@ document.addEventListener('DOMContentLoaded', function () {
                                 roomCode: currentRoom, 
                                 targetCenter: centerCard 
                             });
+                            
+                            // Disable all buttons after selection
+                            document.querySelectorAll('.selectCenter').forEach(btn => {
+                                btn.disabled = true;
+                            });
+                            
+                            // Show confirmation message without revealing the role
+                            document.getElementById('resultDisplay').innerHTML = `
+                                <p>You swapped with ${centerCard}!</p>
+                                <p>You won't know your new role until morning.</p>
+                            `;
                         });
                     });
                 } else if (currentRole === 'paranormal-investigator') {
