@@ -574,13 +574,13 @@ document.addEventListener('DOMContentLoaded', function () {
                                 </ul>
                             </div>
                         `;
-                
+    
                         // Add event listeners for player selection
                         document.querySelectorAll('.selectPlayer').forEach(button => {
                             button.addEventListener('click', () => {
                                 const playerId = button.getAttribute('data-player-id');
                                 socket.emit('mysticWolfAction', { roomCode: currentRoom, target: playerId });
-                
+    
                                 // Disable all buttons after selection to prevent multiple clicks
                                 document.querySelectorAll('.selectPlayer').forEach(btn => btn.disabled = true);
                             });
@@ -622,10 +622,335 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 } else if (currentRole === 'insomniac') {
                     // Insomniac's turn: Show their current role
-                    socket.emit('insomniacAction', { roomCode: currentRoom });
+                    const insomniacRole = clientAssignedRoles[socket.id];
+                    gameScreen.innerHTML += `
+                        <p>Your current role is: ${roleDisplayNames[insomniacRole] || insomniacRole}</p>
+                    `;
+                } else if (currentRole === 'werewolf-1' || currentRole === 'werewolf-2' || 
+                          currentRole === 'alpha-wolf' || currentRole === 'mystic-wolf' || currentRole === 'dream-wolf') {
+                    // First get list of all players and their roles
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        // Filter out other werewolves (excluding yourself)
+                        const otherWerewolves = players.filter(player => 
+                            player.id !== socket.id && 
+                            ['werewolf-1', 'werewolf-2', 'alpha-wolf', 'mystic-wolf', 'dream-wolf']
+                            .includes(clientAssignedRoles[player.id])
+                        );
+                
+                        if (otherWerewolves.length === 0) {
+                            // Lone werewolf - show center card options
+                            gameScreen.innerHTML += `
+                                <p>You are the only Werewolf. Look at a center card:</p>
+                                <div id="centerCardOptions">
+                                    <button class="centerCard" data-card="center1">Center 1</button>
+                                    <button class="centerCard" data-card="center2">Center 2</button>
+                                    <button class="centerCard" data-card="center3">Center 3</button>
+                                </div>
+                                <div id="centerCardResult"></div>
+                            `;
+                
+                            document.querySelectorAll('.centerCard').forEach(button => {
+                                button.addEventListener('click', () => {
+                                    const card = button.getAttribute('data-card');
+                                    socket.emit('viewCenterCard', {
+                                        roomCode: currentRoom,
+                                        card: card
+                                    });
+                                });
+                            });
+                        } else {
+                            // Show other werewolves
+                            gameScreen.innerHTML += `
+                                <p>Other Werewolves:</p>
+                                <ul>
+                                    ${otherWerewolves.map(w => `<li>${w.name || "Unnamed"}</li>`).join('')}
+                                </ul>
+                            `;
+                        }
+                    });
+                } else if (currentRole === 'witch') {
+                    // Witch's turn: Allow viewing and optionally swapping with a center card
+                    gameScreen.innerHTML += `
+                        <p>Choose a center card to view:</p>
+                        <div id="witchOptions">
+                            <button class="selectCenter" data-center="center1">Center 1</button>
+                            <button class="selectCenter" data-center="center2">Center 2</button>
+                            <button class="selectCenter" data-center="center3">Center 3</button>
+                        </div>
+                        <div id="witchSwapOptions" style="display:none;">
+                            <p>Do you want to swap with this card?</p>
+                            <button id="confirmSwap">Yes, Swap</button>
+                            <button id="declineSwap">No, Keep My Role</button>
+                        </div>
+                    `;
+                
+                    let selectedCenter = null;
+                    document.querySelectorAll('.selectCenter').forEach(button => {
+                        button.addEventListener('click', () => {
+                            selectedCenter = button.getAttribute('data-center');
+                            socket.emit('witchAction', { 
+                                roomCode: currentRoom, 
+                                action: 'view', 
+                                target: selectedCenter 
+                            });
+                            
+                            // Hide selection, show swap options
+                            document.getElementById('witchOptions').style.display = 'none';
+                            document.getElementById('witchSwapOptions').style.display = 'block';
+                        });
+                    });
+                
+                    document.getElementById('confirmSwap').addEventListener('click', () => {
+                        socket.emit('witchAction', { 
+                            roomCode: currentRoom, 
+                            action: 'swap', 
+                            target: selectedCenter 
+                        });
+                    });
+                
+                    document.getElementById('declineSwap').addEventListener('click', () => {
+                        socket.emit('completeTurn', { roomCode: currentRoom });
+                    });
+                } else if (currentRole === 'drunk') {
+                    // Drunk's turn: Must swap with a center card
+                    gameScreen.innerHTML += `
+                        <p>You must swap with a center card (you won't know your new role):</p>
+                        <div id="drunkOptions">
+                            <button class="selectCenter" data-center="center1">Center 1</button>
+                            <button class="selectCenter" data-center="center2">Center 2</button>
+                            <button class="selectCenter" data-center="center3">Center 3</button>
+                        </div>
+                    `;
+                
+                    document.querySelectorAll('.selectCenter').forEach(button => {
+                        button.addEventListener('click', () => {
+                            const centerCard = button.getAttribute('data-center');
+                            socket.emit('drunkAction', { 
+                                roomCode: currentRoom, 
+                                targetCenter: centerCard 
+                            });
+                        });
+                    });
+                } else if (currentRole === 'paranormal-investigator') {
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        gameScreen.innerHTML += `
+                            <p>Choose a player to investigate:</p>
+                            <div id="piOptions">
+                                <ul>
+                                    ${players.filter(player => player.id !== socket.id).map(player => `
+                                        <li>
+                                            <button class="selectPlayer" data-player-id="${player.id}">
+                                                ${player.name || "Unnamed"}
+                                            </button>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                            </div>
+                            <div id="piResult"></div>
+                        `;
+                
+                        document.querySelectorAll('.selectPlayer').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const playerId = button.getAttribute('data-player-id');
+                                socket.emit('piAction', { 
+                                    roomCode: currentRoom, 
+                                    target: playerId 
+                                });
+                                // Disable all buttons after selection
+                                document.querySelectorAll('.selectPlayer').forEach(btn => {
+                                    btn.disabled = true;
+                                    btn.style.opacity = '0.5';
+                                });
+                            });
+                        });
+                    });
+                } else if (currentRole === 'gremlin') {
+                    // Gremlin's turn: Can swap any two players (including themselves)
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        gameScreen.innerHTML += `
+                            <p>Choose any two players to swap (can include yourself):</p>
+                            <div id="gremlinOptions">
+                                <ul>
+                                    ${players.map(player => `
+                                        <li>
+                                            <button class="selectPlayer" data-player-id="${player.id}">
+                                                ${player.name || "Unnamed"} ${player.id === socket.id ? '(You)' : ''}
+                                            </button>
+                                        </li>
+                                    `).join('')}
+                                </ul>
+                                <p id="selectionStatus">Select 2 players</p>
+                            </div>
+                        `;
+                
+                        let selectedPlayers = [];
+                        const updateSelectionStatus = () => {
+                            const status = document.getElementById('selectionStatus');
+                            if (selectedPlayers.length === 0) {
+                                status.textContent = "Select 2 players";
+                            } else if (selectedPlayers.length === 1) {
+                                const playerName = players.find(p => p.id === selectedPlayers[0]).name;
+                                status.textContent = `Selected: ${playerName}. Select 1 more.`;
+                            } else {
+                                const playerNames = selectedPlayers.map(id => 
+                                    players.find(p => p.id === id).name).join(' and ');
+                                status.textContent = `Will swap: ${playerNames}`;
+                            }
+                        };
+                
+                        document.querySelectorAll('.selectPlayer').forEach(button => {
+                            button.addEventListener('click', () => {
+                                const playerId = button.getAttribute('data-player-id');
+                                
+                                // Toggle selection
+                                const index = selectedPlayers.indexOf(playerId);
+                                if (index === -1) {
+                                    if (selectedPlayers.length < 2) {
+                                        selectedPlayers.push(playerId);
+                                        button.style.backgroundColor = '#4682B4';
+                                    }
+                                } else {
+                                    selectedPlayers.splice(index, 1);
+                                    button.style.backgroundColor = '';
+                                }
+                
+                                updateSelectionStatus();
+                
+                                // Auto-submit when 2 players selected
+                                if (selectedPlayers.length === 2) {
+                                    socket.emit('gremlinAction', { 
+                                        roomCode: currentRoom, 
+                                        targets: selectedPlayers 
+                                    });
+                                }
+                            });
+                        });
+                    });
+                } else if (currentRole === 'minion') {
+                    // Minion's turn - automatically request werewolf info
+                    socket.emit('minionAction', { roomCode: currentRoom });
+                    
+                    // Show loading message while waiting for response
+                    document.getElementById('resultDisplay').innerHTML = `
+                        <p>Revealing werewolves...</p>
+                    `;
+                } else if (currentRole === 'squire') {
+                    // Squire's turn: Verify current werewolves
+                    gameScreen.innerHTML += `
+                        <p>You are the Squire. You may verify the current Werewolves.</p>
+                        <button id="verifyWerewolves">Verify Werewolves</button>
+                        <div id="squireResult"></div>
+                    `;
+                
+                    document.getElementById('verifyWerewolves').addEventListener('click', () => {
+                        socket.emit('squireAction', { 
+                            roomCode: currentRoom, 
+                            action: 'verify' 
+                        });
+                    });
                 }
+            } else {
+                // Not this player's turn - just show waiting message
+                gameScreen.innerHTML += `<p>Waiting for ${roleDisplayNames[currentRole] || currentRole} to complete their action...</p>`;
             }
         }
+    });
+    
+
+    socket.on('squireResult', ({ werewolves, noWerewolves }) => {
+        const resultDisplay = document.getElementById('squireResult') || 
+                            document.getElementById('resultDisplay');
+        
+        if (noWerewolves) {
+            resultDisplay.innerHTML = `
+                <p>There are no Werewolves!</p>
+                <p class="warning">You must get someone else killed to win.</p>
+            `;
+        } else if (werewolves.length === 0) {
+            resultDisplay.innerHTML = `<p>There are no Werewolves in the game.</p>`;
+        } else {
+            resultDisplay.innerHTML = `
+                <p>Current Werewolves are:</p>
+                <ul>
+                    ${werewolves.map(name => `<li>${name}</li>`).join('')}
+                </ul>
+            `;
+        }
+    });
+
+    socket.on('minionResult', ({ werewolves, noWerewolves }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        
+        if (noWerewolves) {
+            resultDisplay.innerHTML = `
+                <p>There are no Werewolves in the game!</p>
+                <p class="warning">You must get someone else killed to win.</p>
+            `;
+        } else if (werewolves.length === 0) {
+            resultDisplay.innerHTML = `<p>There are no Werewolves in the game.</p>`;
+        } else {
+            resultDisplay.innerHTML = `
+                <p>The Werewolves are:</p>
+                <ul>
+                    ${werewolves.map(name => `<li>${name}</li>`).join('')}
+                </ul>
+                <p>Help them avoid being killed!</p>
+            `;
+        }
+    });
+
+    socket.on('gremlinResult', ({ message }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        resultDisplay.innerHTML = `<p>${message}</p>`;
+    });
+
+    socket.on('piResult', ({ isWerewolf, newRole, targetRole }) => {
+        const resultDisplay = document.getElementById('piResult') || 
+                             document.getElementById('resultDisplay');
+        
+        if (isWerewolf) {
+            resultDisplay.innerHTML = `
+                <p>This player is a ${roleDisplayNames[targetRole] || targetRole}!</p>
+                <p class="warning">You have become a ${roleDisplayNames[newRole] || newRole}!</p>
+            `;
+            
+            // Update the player's own role display
+            if (document.getElementById('gameMessage')) {
+                document.getElementById('gameMessage').textContent = 
+                    `Your role is now: ${roleDisplayNames[newRole] || newRole}`;
+            }
+            
+            // Update card color if visible
+            const cardBack = document.querySelector('.card-back');
+            if (cardBack) {
+                cardBack.style.background = 'linear-gradient(135deg, rgb(236, 16, 16), rgb(180, 12, 12))';
+                cardBack.style.border = '2px solid rgb(180, 12, 12)';
+            }
+        } else {
+            resultDisplay.innerHTML = `
+                <p>This player is not a Werewolf (${roleDisplayNames[targetRole] || targetRole}).</p>
+            `;
+        }
+    });
+
+    socket.on('drunkResult', ({ message }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        resultDisplay.innerHTML = `<p>${message}</p>`;
+    });
+
+    socket.on('witchViewResult', ({ centerRole, centerCard }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        resultDisplay.innerHTML = `
+            <p>You viewed ${centerCard}: ${roleDisplayNames[centerRole] || centerRole}</p>
+        `;
+    });
+    
+    socket.on('witchSwapResult', ({ message }) => {
+        const resultDisplay = document.getElementById('resultDisplay');
+        resultDisplay.innerHTML = `<p>${message}</p>`;
     });
     
     socket.on('seerResult', ({ targetRole }) => {
@@ -671,6 +996,19 @@ document.addEventListener('DOMContentLoaded', function () {
         if (resultDisplay) {
             resultDisplay.textContent = `Your current role is: ${roleDisplayNames[role] || role}`;
         }
+    });
+
+    socket.on('centerCardViewed', ({ card, role }) => {
+        const resultDiv = document.getElementById('centerCardResult') || 
+                         document.getElementById('resultDisplay');
+        resultDiv.innerHTML = `
+            <p>Center card (${card}) shows: ${roleDisplayNames[role] || role}</p>
+        `;
+        
+        // Disable buttons after selection
+        document.querySelectorAll('.centerCard').forEach(btn => {
+            btn.disabled = true;
+        });
     });
     
     socket.on('turnTimer', ({ timer }) => {

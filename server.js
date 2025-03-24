@@ -263,60 +263,209 @@ io.on('connection', (socket) => {
         nextRoleTurn(roomCode);
     });
 
-    function nextRoleTurn(roomCode) {
+    socket.on('witchAction', ({ roomCode, action, target }) => {
         const room = rooms[roomCode];
-        if (!room || !room.nightPhaseActive) {
-            console.log("Night phase is not active or room does not exist.");
+        if (!room) return;
+    
+        if (action === 'view') {
+            // Witch views a center card
+            const centerRole = room.assignedRoles[target];
+            io.to(socket.id).emit('witchViewResult', { centerRole, centerCard: target });
+        } else if (action === 'swap') {
+            // Witch swaps with a center card
+            const witchRole = room.assignedRoles[socket.id];
+            const centerRole = room.assignedRoles[target];
+            
+            room.assignedRoles[socket.id] = centerRole;
+            room.assignedRoles[target] = witchRole;
+            
+            io.to(socket.id).emit('witchSwapResult', { 
+                message: `You swapped with ${target}! Your new role is ${centerRole}`
+            });
+        }
+    
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
+    socket.on('drunkAction', ({ roomCode, targetCenter }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Drunk must swap with a center card
+        const drunkRole = room.assignedRoles[socket.id];
+        const centerRole = room.assignedRoles[targetCenter];
+        
+        room.assignedRoles[socket.id] = centerRole;
+        room.assignedRoles[targetCenter] = drunkRole;
+        
+        io.to(socket.id).emit('drunkResult', { 
+            message: `You are now ${centerRole} (but you don't know it yet!)` 
+        });
+    
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
+    socket.on('piAction', ({ roomCode, target }) => {
+        const room = rooms[roomCode];
+        if (!room || !room.nightPhaseActive) return;
+    
+        const targetRole = room.assignedRoles[target];
+        const isWerewolf = ['werewolf-1', 'werewolf-2', 'alpha-wolf', 'mystic-wolf', 'dream-wolf']
+            .includes(targetRole);
+    
+        if (isWerewolf) {
+            // Convert PI to werewolf
+            const newWerewolfType = ['werewolf-1', 'werewolf-2'][Math.floor(Math.random() * 2)];
+            room.assignedRoles[socket.id] = newWerewolfType;
+            
+            io.to(socket.id).emit('piResult', { 
+                isWerewolf: true,
+                newRole: newWerewolfType,
+                targetRole
+            });
+        } else {
+            io.to(socket.id).emit('piResult', { 
+                isWerewolf: false,
+                targetRole
+            });
+        }
+        
+        // DON'T manually advance turn - let timer handle it
+        // Just disable further actions from this PI
+        room.completedActions = room.completedActions || [];
+        room.completedActions.push(socket.id);
+    });
+
+    socket.on('gremlinAction', ({ roomCode, targets }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Must select exactly 2 targets (could include themselves)
+        if (targets.length !== 2) {
+            io.to(socket.id).emit('error', { message: "You must select exactly two players" });
             return;
         }
     
-        console.log(`Current role index: ${room.currentRoleIndex}, Total roles: ${room.gameRoleTurnOrder.length}`);
+        // Swap the roles
+        const temp = room.assignedRoles[targets[0]];
+        room.assignedRoles[targets[0]] = room.assignedRoles[targets[1]];
+        room.assignedRoles[targets[1]] = temp;
     
-        // Skip roles with no actions
-        const noActionRoles = ['tanner', 'villager-1', 'villager-2', 'villager-3'];
-        while (room.currentRoleIndex < room.gameRoleTurnOrder.length) {
-            const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
-            if (!noActionRoles.includes(currentRole)) break;
-            console.log(`Skipping role: ${currentRole}`);
+        io.to(socket.id).emit('gremlinResult', { 
+            message: "Roles swapped successfully!"
+        });
+    
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
+    socket.on('minionAction', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Identify all werewolves
+        const werewolves = room.players.filter(player => 
+            ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"]
+            .includes(room.assignedRoles[player.id])
+        ).map(w => w.name || "Unnamed");
+    
+        // Immediately send the result to the Minion
+        io.to(socket.id).emit('minionResult', { 
+            werewolves,
+            noWerewolves: werewolves.length === 0
+        });
+    });
+
+    socket.on('squireAction', ({ roomCode, action }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        if (action === 'verify') {
+            // Get current werewolves
+            const currentWerewolves = room.players.filter(player => 
+                ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"]
+                .includes(room.assignedRoles[player.id])
+            ).map(w => w.name || "Unnamed");
+    
+            io.to(socket.id).emit('squireResult', { 
+                werewolves: currentWerewolves,
+                noWerewolves: currentWerewolves.length === 0
+            });
+        }
+    
+        // Squire always completes turn after verifying
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
+    socket.on('viewCenterCard', ({ roomCode, card }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        io.to(socket.id).emit('centerCardViewed', {
+            card: card,
+            role: room.assignedRoles[card]
+        });
+    });
+
+    function nextRoleTurn(roomCode) {
+        const room = rooms[roomCode];
+        if (!room || !room.nightPhaseActive) return;
+    
+        // Clear previous timers and listeners
+        if (room.currentTimer) {
+            clearInterval(room.currentTimer);
+            room.currentTimer = null;
+        }
+    
+        // Skip no-action roles
+        const noActionRoles = ['villager-1', 'villager-2', 'villager-3'];
+        while (room.currentRoleIndex < room.gameRoleTurnOrder.length && 
+               noActionRoles.includes(room.gameRoleTurnOrder[room.currentRoleIndex])) {
             room.currentRoleIndex++;
         }
     
-        console.log(`After skipping no-action roles, current role index: ${room.currentRoleIndex}`);
-    
-        // Check if all roles have completed their turns
         if (room.currentRoleIndex >= room.gameRoleTurnOrder.length) {
-            console.log("All roles completed. Starting day phase.");
-            room.nightPhaseActive = false; // Mark night phase as inactive
-            io.to(roomCode).emit('startDayPhase'); // Notify clients to start the day phase
+            room.nightPhaseActive = false;
+            io.to(roomCode).emit('startDayPhase');
             return;
         }
     
-        // Get the current role and player
         const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
-        const currentPlayer = room.players.find(player => room.assignedRoles[player.id] === currentRole);
+        const currentPlayers = room.players.filter(p => room.assignedRoles[p.id] === currentRole);
     
-        console.log(`Current role: ${currentRole}, Current player: ${currentPlayer ? currentPlayer.id : 'None'}`);
-    
-        // Emit the nightTurn event with the current role and player
-        io.to(roomCode).emit('nightTurn', { currentRole, currentPlayer: currentPlayer ? currentPlayer.id : null });
-    
-        // Start the timer for the current role's turn
-        let timer = 15; // 15 seconds per turn
-        const intervalId = setInterval(() => {
+        // Start new timer
+        let timer = 15;
+        room.currentTimer = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
     
             if (timer <= 0) {
-                console.log(`Timer ended for role: ${currentRole}`);
-                clearInterval(intervalId);
-                room.currentRoleIndex++; // Move to the next role
-                nextRoleTurn(roomCode); // Process the next role's turn
+                clearInterval(room.currentTimer);
+                room.currentRoleIndex++;
+                nextRoleTurn(roomCode);
             }
         }, 1000);
     
-        // Store the interval ID so it can be cleared if the action is completed early
-        if (!room.turnIntervals) room.turnIntervals = {};
-        room.turnIntervals[currentRole] = intervalId;
+        // Notify players
+        currentPlayers.forEach(player => {
+            io.to(player.id).emit('nightTurn', { 
+                currentRole: currentRole,
+                currentPlayer: player.id
+            });
+        });
+        
+        // Notify other players
+        room.players.forEach(player => {
+            if (!currentPlayers.some(p => p.id === player.id)) {
+                io.to(player.id).emit('nightTurn', {
+                    currentRole: currentRole,
+                    currentPlayer: null
+                });
+            }
+        });
     }
 
     socket.on('nightActionComplete', ({ roomCode }) => {
@@ -400,25 +549,81 @@ io.on('connection', (socket) => {
     });
 
     function determineWinner(assignedRoles, votedPlayerId, players) {
-        const votedPlayerRole = assignedRoles[votedPlayerId];
         const werewolfRoles = ["werewolf-1", "werewolf-2", "alpha-wolf", "mystic-wolf", "dream-wolf"];
         const tannerRoles = ["tanner", "apprentice-tanner"];
+        const executionerRole = "executioner";
+        
+        // 1. Check if someone was voted out
+        const someoneDied = votedPlayerId !== undefined && votedPlayerId !== null;
+        const votedPlayerRole = someoneDied ? assignedRoles[votedPlayerId] : null;
+    
+        // 2. Check special roles (Tanner/Executioner) - these override everything
+        if (someoneDied && tannerRoles.includes(votedPlayerRole)) {
+            return "Tanner";
+        }
+        if (someoneDied && votedPlayerRole === executionerRole) {
+            return "Executioner";
+        }
+    
+        // 3. Check werewolf presence in the game
+        const werewolvesPresent = werewolfRoles.some(role => 
+            Object.values(assignedRoles).includes(role)
+        );
+    
+        // 4. Check if any werewolves died
+        const werewolfDied = someoneDied && werewolfRoles.includes(votedPlayerRole);
+    
+        // 5. Minion-specific checks
+        const minionPresent = Object.values(assignedRoles).includes("minion");
+        const minionDied = someoneDied && assignedRoles[votedPlayerId] === "minion";
 
-        if (werewolfRoles.includes(votedPlayerRole)) {
-            // Werewolf was voted out. Villagers win unless Tanner wins.
-            if (tannerRoles.some(tannerRole => Object.values(assignedRoles).includes(tannerRole))) {
-                return "Tanner";
-            } else {
-                return "Villagers";
+        // 6. Squire-specific checks
+        const squirePresent = Object.values(assignedRoles).includes("squire");
+        const squireDied = someoneDied && assignedRoles[votedPlayerId] === "squire";
+    
+        // 7. Official Win Conditions:
+        
+        // Case 1: Tanner wins if tanner dies (already handled above)
+        
+        // Case 2: Village wins if:
+        //   - At least one werewolf dies, OR
+        //   - No werewolves in game AND no one dies
+        if (werewolfDied || (!werewolvesPresent && !someoneDied)) {
+            return "Villagers";
+        }
+    
+        // Case 3: Werewolves win if:
+        //   - No werewolves died AND werewolves exist in game
+        //   - (Minion automatically wins with werewolves in this case)
+        if (werewolvesPresent && !werewolfDied) {
+            return "Werewolves";
+        }
+    
+        // Case 4: Special Minion-alone case
+        if (minionPresent && !werewolvesPresent) {
+            if (!someoneDied) {
+                return "Villagers"; // No one dies - villagers win
             }
-        } else {
-            // Werewolf was not voted out. Werewolves win unless Tanner wins.
-            if (tannerRoles.some(tannerRole => Object.values(assignedRoles).includes(tannerRole))) {
-                return "Tanner";
-            } else {
-                return "Werewolves";
+            return minionDied ? "Villagers" : "Minion";
+        }
+
+        // Case 5: Squire win conditions:
+        if (squirePresent) {
+            // Case 1: No werewolves in game
+            if (!werewolvesPresent) {
+                if (!someoneDied) {
+                    return "Villagers"; // No one dies
+                }
+                return squireDied ? "Villagers" : "Squire";
+            }
+            // Case 2: Werewolves present and none died
+            else if (!werewolfDied) {
+                return "Werewolves"; // Squire wins with werewolves
             }
         }
+    
+        // Default fallback (should theoretically never reach here)
+        return "Villagers";
     }
 
     socket.on('playAgain', (roomCode) => {
