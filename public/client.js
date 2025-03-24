@@ -186,8 +186,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const roleName = roleElement.getAttribute('data-role');
             const isSelected = roles.includes(roleName);
     
-            // Only update the role's selection state and color if it's not already selected
-            if (isSelected && !roleElement.classList.contains('selected')) {
+            // Update selection state
+            if (isSelected) {
                 roleElement.classList.add('selected');
                 if (["werewolf-1", "werewolf-2", "minion", "squire", "serpent", "mystic-wolf", "dream-wolf"].includes(roleName)) {
                     roleElement.classList.add('evil');
@@ -199,6 +199,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     roleElement.classList.add('good');
                     roleElement.classList.remove('evil', 'neutral');
                 }
+            } else {
+                roleElement.classList.remove('selected', 'evil', 'good', 'neutral');
             }
     
             // Disable roles for non-host players
