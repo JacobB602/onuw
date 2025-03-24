@@ -46,21 +46,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Add other roles as needed
     };
 
-    // Show the name submission modal when joining a room
-    document.getElementById("joinRoom").addEventListener("click", function () {
-        const roomCode = document.getElementById("roomCode").value.trim();
-        if (!roomCode) {
-            alert("Please enter a room code!");
-            return;
-        }
-        currentRoom = roomCode;
-        socket.emit('joinRoom', { roomCode });
-
-        // Show the name submission modal
-        const nameModal = document.getElementById('nameModal');
-        nameModal.style.display = 'flex'; // Show the modal
-    });
-
     // Handle name submission
     function handleSubmitName() {
         const usernameInput = document.getElementById('usernameInput');
@@ -627,8 +612,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <p>Your current role is: ${roleDisplayNames[insomniacRole] || insomniacRole}</p>
                     `;
                 } else if (currentRole === 'werewolf-1' || currentRole === 'werewolf-2' || 
-                    currentRole === 'mystic-wolf' || currentRole === 'dream-wolf' || 
-                    currentRole === 'serpent') {
+                    currentRole === 'mystic-wolf' || currentRole === 'dream-wolf') {
                     // First get list of all players and their roles
                     socket.emit('requestPlayerList', currentRoom);
                     socket.once('playerList', (players) => {
@@ -889,19 +873,62 @@ document.addEventListener('DOMContentLoaded', function () {
                         });
                     });
                 } else if (currentRole === 'serpent') {
-                    gameScreen.innerHTML += `
-                        <div>
-                            <h3>Serpent: Choose cards to disguise</h3>
-                            <button id="disguiseOnePlayer">Disguise 1 Player</button>
-                            <button id="disguiseTwoCenters">Disguise 2 Center Cards</button>
-                            <div id="serpentTargetSelection"></div>
-                        </div>
-                    `;
-                
-                    // Player disguise
-                    document.getElementById('disguiseOnePlayer').addEventListener('click', () => {
-                        socket.emit('requestPlayerList', currentRoom);
-                        socket.once('playerList', (players) => {
+                    socket.emit('requestPlayerList', currentRoom);
+                    socket.once('playerList', (players) => {
+                        // Check if Serpent is the only werewolf
+                        const otherWerewolves = players.filter(player => 
+                            player.id !== socket.id && 
+                            ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf']
+                            .includes(clientAssignedRoles[player.id])
+                        );
+                        
+                        const isLoneWerewolf = otherWerewolves.length === 0;
+                        
+                        let html = `
+                            <div>
+                                <h3>Serpent Actions</h3>
+                        `;
+                        
+                        if (isLoneWerewolf) {
+                            html += `
+                                <p>You are the only Werewolf. You may look at a center card:</p>
+                                <div id="centerCardOptions">
+                                    <button class="centerCard" data-card="center1">Center 1</button>
+                                    <button class="centerCard" data-card="center2">Center 2</button>
+                                    <button class="centerCard" data-card="center3">Center 3</button>
+                                </div>
+                                <div id="centerCardResult"></div>
+                            `;
+                        } else {
+                            html += `
+                                <p>There are ${otherWerewolves.length} other Werewolves in the game.</p>
+                            `;
+                        }
+                        
+                        html += `
+                                <h4>Your Serpent ability:</h4>
+                                <button id="disguiseOnePlayer">Disguise 1 Player</button>
+                                <button id="disguiseTwoCenters">Disguise 2 Center Cards</button>
+                                <div id="serpentTargetSelection"></div>
+                            </div>
+                        `;
+                        
+                        gameScreen.innerHTML += html;
+                        
+                        if (isLoneWerewolf) {
+                            document.querySelectorAll('.centerCard').forEach(button => {
+                                button.addEventListener('click', () => {
+                                    const card = button.getAttribute('data-card');
+                                    socket.emit('viewCenterCard', {
+                                        roomCode: currentRoom,
+                                        card: card
+                                    });
+                                });
+                            });
+                        }
+                        
+                        // Player disguise
+                        document.getElementById('disguiseOnePlayer').addEventListener('click', () => {
                             document.getElementById('serpentTargetSelection').innerHTML = `
                                 ${players.filter(p => p.id !== socket.id).map(player => `
                                     <button class="target-btn" data-target="${player.id}">
@@ -919,45 +946,45 @@ document.addEventListener('DOMContentLoaded', function () {
                                 });
                             });
                         });
-                    });
+                        
+                        // Center card disguise
+                        document.getElementById('disguiseTwoCenters').addEventListener('click', () => {
+                            document.getElementById('serpentTargetSelection').innerHTML = `
+                                ${['center1', 'center2', 'center3'].map(center => `
+                                    <button class="target-btn" data-target="${center}">
+                                        ${center}
+                                    </button>
+                                `).join('')}
+                                ${rooms[currentRoom]?.assignedRoles["center4"] ? 
+                                    '<button class="target-btn" data-target="center4">center4</button>' : ''}
+                                <p>Select 2</p>
+                            `;
                 
-                    // Center card disguise
-                    document.getElementById('disguiseTwoCenters').addEventListener('click', () => {
-                        document.getElementById('serpentTargetSelection').innerHTML = `
-                            ${['center1', 'center2', 'center3'].map(center => `
-                                <button class="target-btn" data-target="${center}">
-                                    ${center}
-                                </button>
-                            `).join('')}
-                            ${rooms[currentRoom]?.assignedRoles["center4"] ? 
-                                '<button class="target-btn" data-target="center4">center4</button>' : ''}
-                            <p>Select 2</p>
-                        `;
+                            let selected = [];
+                            document.querySelectorAll('.target-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    const target = this.getAttribute('data-target');
+                                    if (selected.includes(target)) {
+                                        selected = selected.filter(t => t !== target);
+                                        this.style.backgroundColor = '';
+                                    } else if (selected.length < 2) {
+                                        selected.push(target);
+                                        this.style.backgroundColor = '#ccc';
+                                    }
                 
-                        let selected = [];
-                        document.querySelectorAll('.target-btn').forEach(btn => {
-                            btn.addEventListener('click', function() {
-                                const target = this.getAttribute('data-target');
-                                if (selected.includes(target)) {
-                                    selected = selected.filter(t => t !== target);
-                                    this.style.backgroundColor = '';
-                                } else if (selected.length < 2) {
-                                    selected.push(target);
-                                    this.style.backgroundColor = '#ccc';
-                                }
-                
-                                if (selected.length === 2) {
-                                    socket.emit('serpentAction', {
-                                        roomCode: currentRoom,
-                                        targets: selected
-                                    });
-                                }
+                                    if (selected.length === 2) {
+                                        socket.emit('serpentAction', {
+                                            roomCode: currentRoom,
+                                            targets: selected
+                                        });
+                                    }
+                                });
                             });
                         });
                     });
                 }
             } else {
-                // Not this player's turn - just show waiting message
+                // Not this player's turn
                 gameScreen.innerHTML += `<p>Waiting for ${roleDisplayNames[currentRole] || currentRole} to complete their action...</p>`;
             }
         }
