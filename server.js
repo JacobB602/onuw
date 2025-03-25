@@ -159,22 +159,6 @@ io.on('connection', (socket) => {
         
         rooms[roomCode].confirmedPlayers[socket.id] = true;
         
-        // For single-player games, skip the waiting
-        if (rooms[roomCode].players.length === 1) {
-            rooms[roomCode].currentRoleIndex = 0;
-            rooms[roomCode].nightPhaseActive = true;
-            // REMOVE THIS LINE:
-            // io.to(roomCode).emit('startNightPhase');
-            // ADD THIS LINE:
-            nextRoleTurn(roomCode);
-            return;
-        }
-    
-        io.to(roomCode).emit('roleConfirmed', {
-            confirmedPlayers: rooms[roomCode].confirmedPlayers,
-            players: rooms[roomCode].players
-        });
-    
         const allConfirmed = rooms[roomCode].players.every(player =>
             rooms[roomCode].confirmedPlayers[player.id]
         );
@@ -182,10 +166,20 @@ io.on('connection', (socket) => {
         if (allConfirmed) {
             rooms[roomCode].currentRoleIndex = 0;
             rooms[roomCode].nightPhaseActive = true;
-            // REMOVE THIS LINE:
-            // io.to(roomCode).emit('startNightPhase');
-            // ADD THIS LINE:
-            nextRoleTurn(roomCode);
+            
+            // Force all clients to clear their UI first
+            io.to(roomCode).emit('prepareForNightPhase');
+            
+            // Small delay to ensure clients are ready
+            setTimeout(() => {
+                nextRoleTurn(roomCode);
+            }, 100);
+        } else {
+            // Update confirmation status
+            io.to(roomCode).emit('roleConfirmed', {
+                confirmedPlayers: rooms[roomCode].confirmedPlayers,
+                players: rooms[roomCode].players
+            });
         }
     });
 
@@ -414,6 +408,16 @@ io.on('connection', (socket) => {
         return room.assignedRoles[target];
     }
 
+    socket.on('werewolfActionComplete', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room || !room.currentTimer) return;
+        
+        // Force move to next role
+        clearInterval(room.currentTimer);
+        room.currentRoleIndex++;
+        nextRoleTurn(roomCode);
+    });
+
     socket.on('viewCenterCard', ({ roomCode, card }) => {
         const room = rooms[roomCode];
         if (!room) return;
@@ -424,28 +428,31 @@ io.on('connection', (socket) => {
         });
     });
 
+    socket.on('requestPlayerList', (roomCode) => {
+        const room = rooms[roomCode];
+        if (room) {
+            const players = room.players.map(player => ({
+                id: player.id,
+                name: player.name
+            }));
+            socket.emit('playerList', players);
+        }
+    });
+
     function nextRoleTurn(roomCode) {
         const room = rooms[roomCode];
-        console.log('Starting nextRoleTurn for room:', roomCode);
-        console.log('Current role index:', room.currentRoleIndex);
-        console.log('Game role order:', room.gameRoleTurnOrder);
-        
-        if (!room || !room.nightPhaseActive) {
-            console.log('Night phase not active or room not found');
-            return;
-        }
+        if (!room || !room.nightPhaseActive) return;
     
         if (room.currentTimer) clearInterval(room.currentTimer);
     
-        // Skip roles that don't have active players or aren't in the game
+        // Skip roles with no active players
         while (room.currentRoleIndex < room.gameRoleTurnOrder.length) {
             const currentRole = room.gameRoleTurnOrder[room.currentRoleIndex];
             const activePlayers = room.players.filter(p => 
                 room.startingRoles[p.id] === currentRole
             );
             
-            // Only break if we have players for this role AND the role exists in our game
-            if (activePlayers.length > 0 && room.roles.includes(currentRole)) {
+            if (activePlayers.length > 0 || Object.values(room.startingRoles).includes(currentRole)) {
                 break;
             }
             room.currentRoleIndex++;
@@ -462,13 +469,15 @@ io.on('connection', (socket) => {
             room.startingRoles[p.id] === currentRole
         );
     
-        console.log(`Processing ${currentRole} turn (index ${room.currentRoleIndex})`);
-        console.log(`Players with this role:`, currentPlayers.map(p => p.name));
+        // Special case for werewolves - extend timer if multiple
+        const timerDuration = (['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(currentRole) && 
+                             currentPlayers.length > 1) ? 25 : 15;
     
-        let timer = 15;
+        let timer = timerDuration;
         room.currentTimer = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
+            
             if (timer <= 0) {
                 clearInterval(room.currentTimer);
                 room.currentRoleIndex++;
@@ -476,6 +485,7 @@ io.on('connection', (socket) => {
             }
         }, 1000);
     
+        // Notify players
         currentPlayers.forEach(player => {
             io.to(player.id).emit('nightTurn', {
                 currentRole: currentRole,
@@ -485,7 +495,6 @@ io.on('connection', (socket) => {
             });
         });
         
-        // Notify other players
         room.players.forEach(player => {
             if (!currentPlayers.some(p => p.id === player.id)) {
                 io.to(player.id).emit('nightTurn', {

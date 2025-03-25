@@ -633,6 +633,73 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .werewolf-team {
+            background: rgba(139, 0, 0, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .werewolf-team h3 {
+            color: #8b0000;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .werewolf-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .werewolf-member {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .werewolf-member.evil {
+            background: rgba(139, 0, 0, 0.2);
+        }
+
+        .werewolf-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #8b0000;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .werewolf-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .werewolf-name {
+            font-weight: bold;
+        }
+
+        .werewolf-role {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .werewolf-hint {
+            font-style: italic;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
