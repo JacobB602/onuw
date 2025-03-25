@@ -23,17 +23,47 @@ app.get('/', (req, res) => {
 const rooms = {};
 
 function getGameRoleTurnOrder(selectedRoles) {
-    // This is the canonical turn order
-    const fullOrder = [
-        "dream-wolf", "tanner", "villager-1", "villager-2", "villager-3",
-        "werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "minion",
-        "apprentice-tanner", "sentinel", "seer", "apprentice-seer",
-        "paranormal-investigator", "robber", "witch", "troublemaker",
-        "gremlin", "drunk", "insomniac", "squire"
-    ];
+    // Always include werewolf-team phase if there are any werewolf roles
+    const hasWerewolves = selectedRoles.some(role => 
+        ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(role)
+    );
     
-    // Filter to only include roles that are actually in the game
-    return fullOrder.filter(role => selectedRoles.includes(role));
+    const turnOrder = [
+        // Werewolf team phase (all werewolves see each other or center cards)
+        ...(hasWerewolves ? ["werewolf-team"] : []),
+        
+        // Individual werewolf roles
+        "mystic-wolf",
+        "dream-wolf",
+        "serpent",
+        
+        // Information roles
+        "minion",
+        "squire",
+        
+        // Action roles
+        "seer",
+        "apprentice-seer",
+        "paranormal-investigator",
+        "robber",
+        "witch",
+        "troublemaker",
+        "gremlin",
+        "drunk",
+        
+        // End of night roles
+        "insomniac",
+        
+        // Neutral roles
+        "tanner",
+        "apprentice-tanner"
+    ];
+
+    // Filter to only include roles that are in the game
+    return turnOrder.filter(role => 
+        role === "werewolf-team" || // Always include team phase if we added it
+        selectedRoles.includes(role)
+    );
 }
 
 io.on('connection', (socket) => {
@@ -48,7 +78,10 @@ io.on('connection', (socket) => {
                 roles: [], 
                 confirmedPlayers: {}, 
                 assignedRoles: {}, 
-                votes: {} 
+                originalRoles: {},
+                votes: {},
+                nightPhaseActive: false,
+                currentRoleIndex: 0
             };
         }
     
@@ -83,7 +116,8 @@ io.on('connection', (socket) => {
     socket.on('updateRoles', ({ roomCode, roles }) => {
         if (!rooms[roomCode]) return;
 
-        if (socket.id !== rooms[roomCode].players[0]?.id) {
+        // Only host can update roles
+        if (socket.id !== rooms[roomCode].hostId) {
             console.log(`User ${socket.id} tried to update roles but is not the host.`);
             return;
         }
@@ -100,19 +134,23 @@ io.on('connection', (socket) => {
         room.confirmedPlayers = {};
         room.currentRoleIndex = 0;
         room.nightPhaseActive = false;
+        room.votes = {};
         
-        // Generate turn order based on ACTUAL selected roles
+        // Generate turn order based on selected roles
         room.gameRoleTurnOrder = getGameRoleTurnOrder(room.roles);
         console.log('Game turn order:', room.gameRoleTurnOrder);
         
         // Assign roles
-        room.assignedRoles = assignRoles(roomCode, room.players, room.roles);
+        assignRoles(roomCode);
         io.to(roomCode).emit('gameStart', room.assignedRoles);
     });
 
-    function assignRoles(roomCode, players, roles) {
+    function assignRoles(roomCode) {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
         // Create a copy of roles without modifying the original
-        const rolesToAssign = [...roles];
+        const rolesToAssign = [...room.roles];
         
         // Remove 3 center cards first
         const centerRoles = [];
@@ -123,7 +161,7 @@ io.on('connection', (socket) => {
     
         // Assign player roles
         const assignedRoles = {};
-        players.forEach(player => {
+        room.players.forEach(player => {
             const randomIndex = Math.floor(Math.random() * rolesToAssign.length);
             assignedRoles[player.id] = rolesToAssign.splice(randomIndex, 1)[0];
         });
@@ -134,40 +172,38 @@ io.on('connection', (socket) => {
         assignedRoles["center3"] = centerRoles[2];
     
         // Store in room state
-        rooms[roomCode].startingRoles = {...assignedRoles};
-        rooms[roomCode].originalRoles = {...assignedRoles};
-        rooms[roomCode].assignedRoles = {...assignedRoles};
+        room.startingRoles = {...assignedRoles};
+        room.originalRoles = {...assignedRoles};
+        room.assignedRoles = {...assignedRoles};
     
-        // ===== ADD LOGGING RIGHT HERE =====
-        console.log('\n=== ROLE ASSIGNMENT DEBUG ===');
+        // Debug logging
+        console.log('\n=== ROLE ASSIGNMENT ===');
         console.log(`Room: ${roomCode}`);
         console.log('Players:');
-        players.forEach(player => {
+        room.players.forEach(player => {
             console.log(`- ${player.name || 'Unnamed'} (${player.id}): ${assignedRoles[player.id]}`);
         });
         console.log('Center Cards:');
         console.log(`- Center 1: ${assignedRoles["center1"]}`);
         console.log(`- Center 2: ${assignedRoles["center2"]}`);
         console.log(`- Center 3: ${assignedRoles["center3"]}\n`);
-        // ===== END LOGGING =====
-    
-        return assignedRoles;
     }
 
     socket.on('confirmRole', ({ roomCode }) => {
-        if (!rooms[roomCode]) return;
+        const room = rooms[roomCode];
+        if (!room) return;
         
-        rooms[roomCode].confirmedPlayers[socket.id] = true;
+        room.confirmedPlayers[socket.id] = true;
         
-        const allConfirmed = rooms[roomCode].players.every(player =>
-            rooms[roomCode].confirmedPlayers[player.id]
+        const allConfirmed = room.players.every(player =>
+            room.confirmedPlayers[player.id]
         );
     
         if (allConfirmed) {
-            rooms[roomCode].currentRoleIndex = 0;
-            rooms[roomCode].nightPhaseActive = true;
+            room.currentRoleIndex = 0;
+            room.nightPhaseActive = true;
             
-            // Force all clients to clear their UI first
+            // Clear all clients' UI first
             io.to(roomCode).emit('prepareForNightPhase');
             
             // Small delay to ensure clients are ready
@@ -177,21 +213,23 @@ io.on('connection', (socket) => {
         } else {
             // Update confirmation status
             io.to(roomCode).emit('roleConfirmed', {
-                confirmedPlayers: rooms[roomCode].confirmedPlayers,
-                players: rooms[roomCode].players
+                confirmedPlayers: room.confirmedPlayers,
+                players: room.players
             });
         }
     });
 
-    // Role-specific action handlers
+    // Role action handlers
     socket.on('seerAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
         if (Array.isArray(target)) {
+            // View two center cards
             const centerRoles = target.map(centerCard => getShownRole(room, centerCard));
             io.to(socket.id).emit('seerResult', { targetRole: centerRoles });
         } else {
+            // View one player's card
             const playerRole = getShownRole(room, target);
             io.to(socket.id).emit('seerResult', { targetRole: playerRole });
         }
@@ -202,11 +240,6 @@ io.on('connection', (socket) => {
         if (!room) return;
     
         const targetRole = getShownRole(room, target);
-        if (!targetRole) {
-            io.to(socket.id).emit('error', { message: "Invalid player selected." });
-            return;
-        }
-    
         io.to(socket.id).emit('mysticWolfResult', { targetRole });
     });
 
@@ -229,10 +262,7 @@ io.on('connection', (socket) => {
 
     socket.on('troublemakerAction', ({ roomCode, targets }) => {
         const room = rooms[roomCode];
-        if (!room || targets.length !== 2) {
-            io.to(socket.id).emit('error', { message: "You must select exactly two players." });
-            return;
-        }
+        if (!room || targets.length !== 2) return;
     
         const [player1, player2] = targets;
         const tempRole = room.assignedRoles[player1];
@@ -246,8 +276,15 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const insomniacRole = room.assignedRoles[socket.id];
-        io.to(socket.id).emit('insomniacResult', { role: insomniacRole });
+        const currentRole = room.assignedRoles[socket.id];
+        const originalRole = room.startingRoles[socket.id];
+        const roleChanged = currentRole !== originalRole;
+    
+        io.to(socket.id).emit('insomniacResult', { 
+            role: currentRole,
+            originalRole: originalRole,
+            changed: roleChanged
+        });
     });
 
     socket.on('witchViewAction', ({ roomCode, centerCard }) => {
@@ -268,15 +305,13 @@ io.on('connection', (socket) => {
         const centerRole = room.assignedRoles[centerCard];
         const playerRole = room.assignedRoles[targetPlayer];
         
+        // Swap the roles
         room.assignedRoles[centerCard] = playerRole;
         room.assignedRoles[targetPlayer] = centerRole;
-    
+        
         io.to(socket.id).emit('witchGiveResult', { 
             message: `You gave ${centerCard} to ${room.players.find(p => p.id === targetPlayer)?.name || "Unknown"}` 
         });
-    
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
     });
 
     socket.on('drunkAction', ({ roomCode, targetCenter }) => {
@@ -296,7 +331,7 @@ io.on('connection', (socket) => {
 
     socket.on('piAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
-        if (!room || !room.nightPhaseActive) return;
+        if (!room) return;
     
         const targetRole = getShownRole(room, target);
         const isWerewolf = ['werewolf-1', 'werewolf-2', 'serpent', 'mystic-wolf', 'dream-wolf']
@@ -321,10 +356,7 @@ io.on('connection', (socket) => {
 
     socket.on('gremlinAction', ({ roomCode, targets }) => {
         const room = rooms[roomCode];
-        if (!room || targets.length !== 2) {
-            io.to(socket.id).emit('error', { message: "You must select exactly two players" });
-            return;
-        }
+        if (!room || targets.length !== 2) return;
     
         const temp = room.assignedRoles[targets[0]];
         room.assignedRoles[targets[0]] = room.assignedRoles[targets[1]];
@@ -408,16 +440,6 @@ io.on('connection', (socket) => {
         return room.assignedRoles[target];
     }
 
-    socket.on('werewolfActionComplete', ({ roomCode }) => {
-        const room = rooms[roomCode];
-        if (!room || !room.currentTimer) return;
-        
-        // Force move to next role
-        clearInterval(room.currentTimer);
-        room.currentRoleIndex++;
-        nextRoleTurn(roomCode);
-    });
-
     socket.on('viewCenterCard', ({ roomCode, card }) => {
         const room = rooms[roomCode];
         if (!room) return;
@@ -460,7 +482,7 @@ io.on('connection', (socket) => {
     
         if (room.currentRoleIndex >= room.gameRoleTurnOrder.length) {
             room.nightPhaseActive = false;
-            io.to(roomCode).emit('startDayPhase');
+            startDayPhase(roomCode);
             return;
         }
     
@@ -469,11 +491,13 @@ io.on('connection', (socket) => {
             room.startingRoles[p.id] === currentRole
         );
     
-        // Special case for werewolves - extend timer if multiple
-        const timerDuration = (['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(currentRole) && 
-                             currentPlayers.length > 1) ? 25 : 15;
+        let timer = 15; // Default timer for most roles
+        if (currentRole === "werewolf-team") {
+            timer = 25; // Extra time for werewolf team discussion
+        } else if (currentRole === "seer") {
+            timer = 20; // Extra time for seer decisions
+        }
     
-        let timer = timerDuration;
         room.currentTimer = setInterval(() => {
             timer--;
             io.to(roomCode).emit('turnTimer', { timer });
@@ -485,7 +509,7 @@ io.on('connection', (socket) => {
             }
         }, 1000);
     
-        // Notify players
+        // Notify active players it's their turn
         currentPlayers.forEach(player => {
             io.to(player.id).emit('nightTurn', {
                 currentRole: currentRole,
@@ -495,6 +519,7 @@ io.on('connection', (socket) => {
             });
         });
         
+        // Notify other players to wait
         room.players.forEach(player => {
             if (!currentPlayers.some(p => p.id === player.id)) {
                 io.to(player.id).emit('nightTurn', {
@@ -505,79 +530,113 @@ io.on('connection', (socket) => {
         });
     }
 
-    socket.on('startDayPhase', (roomCode) => {
-        if (!rooms[roomCode]) return;
-        const duration = rooms[roomCode].players.length * 60;
-        io.to(roomCode).emit('dayPhase', { duration, roleOrder: rooms[roomCode].gameRoleTurnOrder });
-
+    function startDayPhase(roomCode) {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        const duration = Math.min(room.players.length * 60, 300); // Max 5 minutes
+        io.to(roomCode).emit('startDayPhase');
+        
         let timer = duration;
-        const intervalId = setInterval(() => {
+        room.dayTimer = setInterval(() => {
             timer--;
             io.to(roomCode).emit('dayTimer', { timer });
+            
             if (timer <= 0) {
-                clearInterval(intervalId);
-                io.to(roomCode).emit('endDayPhase');
+                clearInterval(room.dayTimer);
+                endDayPhase(roomCode);
             }
         }, 1000);
-    });
+    }
 
-    socket.on('endDayPhase', (roomCode) => {
-        if (!rooms[roomCode]) return;
-        rooms[roomCode].votes = {};
+    function endDayPhase(roomCode) {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        room.votes = {};
         io.to(roomCode).emit('endDayPhase');
-    });
+        
+        // Start voting timer
+        let voteTimer = 15;
+        room.voteTimer = setInterval(() => {
+            voteTimer--;
+            io.to(roomCode).emit('voteTimer', { timer: voteTimer });
+            
+            if (voteTimer <= 0) {
+                clearInterval(room.voteTimer);
+                endVotingPhase(roomCode);
+            }
+        }, 1000);
+    }
 
-    socket.on('castVote', ({ roomCode, votedPlayerId }) => {
-        if (!rooms[roomCode]) return;
-        if (!rooms[roomCode].votes) {
-            rooms[roomCode].votes = {};
+    socket.on('castVote', ({ roomCode, target }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        if (!room.votes) {
+            room.votes = {};
         }
-
-        rooms[roomCode].votes[votedPlayerId] = (rooms[roomCode].votes[votedPlayerId] || 0) + 1;
+        
+        // Remove previous vote from this player
+        for (const playerId in room.votes) {
+            if (room.votes[playerId].voter === socket.id) {
+                delete room.votes[playerId];
+                break;
+            }
+        }
+        
+        // Add new vote
+        room.votes[target] = room.votes[target] || { count: 0, voters: [] };
+        room.votes[target].count++;
+        room.votes[target].voters.push(socket.id);
     });
 
-    socket.on('endVotingPhase', (roomCode) => {
-        if (!rooms[roomCode]) return;
-    
+    function endVotingPhase(roomCode) {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
         let maxVotes = 0;
         let votedPlayerId;
-        for (const playerId in rooms[roomCode].votes) {
-            if (rooms[roomCode].votes[playerId] > maxVotes) {
-                maxVotes = rooms[roomCode].votes[playerId];
+        
+        // Find player with most votes
+        for (const playerId in room.votes) {
+            if (room.votes[playerId].count > maxVotes) {
+                maxVotes = room.votes[playerId].count;
                 votedPlayerId = playerId;
             }
         }
-    
-        const winningTeam = determineWinner(rooms[roomCode].assignedRoles, votedPlayerId, rooms[roomCode].players);
-        const roleReveal = rooms[roomCode].players.map(player => ({
+        
+        const winningTeam = determineWinner(room.assignedRoles, votedPlayerId, room.players);
+        const roleReveal = room.players.map(player => ({
             id: player.id,
             name: player.name || "Unnamed",
-            role: rooms[roomCode].assignedRoles[player.id],
-            originalRole: rooms[roomCode].startingRoles[player.id]
+            role: room.assignedRoles[player.id],
+            originalRole: room.startingRoles[player.id]
         }));
-    
-        const centerCards = {
-            center1: rooms[roomCode].assignedRoles["center1"],
-            center2: rooms[roomCode].assignedRoles["center2"],
-            center3: rooms[roomCode].assignedRoles["center3"]
-        };
-    
+        
+        const centerCards = [
+            room.assignedRoles["center1"],
+            room.assignedRoles["center2"],
+            room.assignedRoles["center3"]
+        ];
+        
         io.to(roomCode).emit('votingResult', { 
             votedPlayerId, 
-            votes: rooms[roomCode].votes, 
+            votes: room.votes, 
             winningTeam,
             roleReveal,
             centerCards
         });
-    });
+    }
 
     function determineWinner(assignedRoles, votedPlayerId, players) {
         const werewolfRoles = ["werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "dream-wolf"];
         const tannerRoles = ["tanner", "apprentice-tanner"];
         
-        const someoneDied = votedPlayerId !== undefined && votedPlayerId !== null;
+        const someoneDied = votedPlayerId !== undefined;
         const votedPlayerRole = someoneDied ? assignedRoles[votedPlayerId] : null;
     
+        // Tanner wins if they were voted out
         if (someoneDied && tannerRoles.includes(votedPlayerRole)) {
             return "Tanner";
         }
@@ -587,57 +646,73 @@ io.on('connection', (socket) => {
         );
         const werewolfDied = someoneDied && werewolfRoles.includes(votedPlayerRole);
     
+        // Villagers win if they killed a werewolf or there are no werewolves
         if (werewolfDied || (!werewolvesPresent && !someoneDied)) {
             return "Villagers";
         }
     
+        // Werewolves win if at least one survives and villagers didn't kill one
         if (werewolvesPresent && !werewolfDied) {
             return "Werewolves";
         }
     
+        // Default to villagers winning
         return "Villagers";
     }
 
     socket.on('playAgain', (roomCode) => {
-        if (!rooms[roomCode]) return;
-    
-        if (!rooms[roomCode].playAgainPlayers) {
-            rooms[roomCode].playAgainPlayers = {};
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        if (!room.playAgainPlayers) {
+            room.playAgainPlayers = {};
         }
-    
-        rooms[roomCode].playAgainPlayers[socket.id] = true;
-    
-        const allPlayAgain = rooms[roomCode].players.every(player =>
-            rooms[roomCode].playAgainPlayers[player.id]
+        
+        room.playAgainPlayers[socket.id] = true;
+        
+        const allPlayAgain = room.players.every(player =>
+            room.playAgainPlayers[player.id]
         );
-    
+        
         if (allPlayAgain) {
-            if (rooms[roomCode].currentTimer) {
-                clearInterval(rooms[roomCode].currentTimer);
-            }
+            // Clear all timers
+            if (room.currentTimer) clearInterval(room.currentTimer);
+            if (room.dayTimer) clearInterval(room.dayTimer);
+            if (room.voteTimer) clearInterval(room.voteTimer);
             
-            rooms[roomCode].confirmedPlayers = {};
-            rooms[roomCode].assignedRoles = {};
-            rooms[roomCode].votes = {};
-            rooms[roomCode].playAgainPlayers = {};
-            rooms[roomCode].nightPhaseActive = false;
-            rooms[roomCode].currentRoleIndex = 0;
-    
+            // Reset game state
+            room.confirmedPlayers = {};
+            room.assignedRoles = {};
+            room.votes = {};
+            room.playAgainPlayers = {};
+            room.nightPhaseActive = false;
+            room.currentRoleIndex = 0;
+            room.serpentDeceptions = null;
+            
             io.to(roomCode).emit('resetGame');
-            io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
+            io.to(roomCode).emit('roomUpdate', room.players, room.roles);
         }
     });
 
     socket.on('disconnect', () => {
         console.log(`User ${socket.id} disconnected`);
-
+        
         for (const roomCode in rooms) {
-            rooms[roomCode].players = rooms[roomCode].players.filter(player => player.id !== socket.id);
-
+            rooms[roomCode].players = rooms[roomCode].players.filter(
+                player => player.id !== socket.id
+            );
+            
             if (rooms[roomCode].players.length === 0) {
+                // Clean up empty room
+                if (rooms[roomCode].currentTimer) clearInterval(rooms[roomCode].currentTimer);
+                if (rooms[roomCode].dayTimer) clearInterval(rooms[roomCode].dayTimer);
+                if (rooms[roomCode].voteTimer) clearInterval(rooms[roomCode].voteTimer);
                 delete rooms[roomCode];
-            } else if (rooms[roomCode].players.length > 0) {
-                rooms[roomCode].hostId = rooms[roomCode].players[0].id;
+            } else {
+                // Update host if needed
+                if (rooms[roomCode].hostId === socket.id) {
+                    rooms[roomCode].hostId = rooms[roomCode].players[0]?.id;
+                }
                 io.to(roomCode).emit('roomUpdate', rooms[roomCode].players, rooms[roomCode].roles);
             }
         }

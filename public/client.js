@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let roles = [];
     let clientAssignedRoles = {};
     let clientOriginalRole = '';
+    let currentTimerDisplay = null;
+    let isProcessingTurn = false; // New flag to prevent duplicate turn processing
+    let currentTimerInterval = null;
 
     // Enhanced role display configuration
     const roleConfig = {
@@ -75,7 +78,48 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function getRoleInfo(role) {
-        return roleConfig[role] || { name: role, icon: 'fas fa-question', color: 'neutral', team: 'unknown' };
+        try {
+            if (!role) {
+                return {
+                    name: 'Unknown Role',
+                    icon: 'fas fa-question',
+                    color: 'neutral',
+                    team: 'unknown'
+                };
+            }
+    
+            // Handle center cards
+            if (['center1', 'center2', 'center3'].includes(role)) {
+                return {
+                    name: role.toUpperCase(),
+                    icon: 'fas fa-cards',
+                    color: 'neutral',
+                    team: 'center'
+                };
+            }
+    
+            // Check if role exists in config
+            const info = roleConfig[role];
+            if (!info) {
+                console.warn(`Unknown role: ${role}`);
+                return {
+                    name: role,
+                    icon: 'fas fa-question',
+                    color: 'neutral',
+                    team: 'unknown'
+                };
+            }
+            
+            return info;
+        } catch (error) {
+            console.error('Error in getRoleInfo:', error);
+            return {
+                name: 'Error',
+                icon: 'fas fa-exclamation-triangle',
+                color: 'neutral',
+                team: 'unknown'
+            };
+        }
     }
 
     // Event Listeners
@@ -90,7 +134,6 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('roles').addEventListener('click', () => {
         toggleModal(settingsPopup, true);
         
-        // If host, show all roles as selectable
         if (isHost) {
             roleCards.forEach(card => {
                 card.classList.remove('disabled');
@@ -105,7 +148,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
         } else {
-            // For non-hosts, disable selection
             roleCards.forEach(card => {
                 card.classList.add('disabled');
             });
@@ -125,7 +167,6 @@ document.addEventListener('DOMContentLoaded', function () {
             
             socket.emit('updateRoles', { roomCode: currentRoom, roles: selectedRoles });
             
-            // Update visual state
             const roleInfo = getRoleInfo(role);
             if (this.classList.contains('selected')) {
                 this.classList.add(roleInfo.color);
@@ -198,7 +239,6 @@ document.addEventListener('DOMContentLoaded', function () {
             socket.emit('confirmRole', { roomCode: currentRoom });
             this.disabled = true;
             
-            // Only add the message if it doesn't exist
             if (!document.querySelector('.result-display')) {
                 const display = document.createElement('div');
                 display.className = 'result-display';
@@ -208,47 +248,32 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    function createNightActionUI(role, players) {
-        // First sanitize the role
+    function createNightActionUI(role, players, isCurrentPlayer) {
         const cleanRole = role.replace('stolen-', '');
         const roleInfo = getRoleInfo(cleanRole);
         
-        // Verify this is actually our current role
-        if (clientAssignedRoles[socket.id].replace('stolen-', '') !== cleanRole) {
-            console.error(`UI/role mismatch: Showing ${cleanRole} but have ${clientAssignedRoles[socket.id]}`);
-        }
-        
-        let html = `
-            <div class="phase-header">
-                <h2>${roleInfo.name}'s Turn</h2>
-                <div class="phase-timer" id="turnTimerDisplay">15</div>
-            </div>
-            <div id="actionContent"></div>
-        `;
-    
-        gameScreenElement.innerHTML = html;
+        // Clear and rebuild the action content only
         const actionContent = document.getElementById('actionContent');
+        actionContent.innerHTML = '';
+    
+        if (!isCurrentPlayer) {
+            actionContent.innerHTML = `<p>Waiting for ${roleInfo.name} to take their turn...</p>`;
+            return;
+        }
     
         switch(cleanRole) {
-            case 'werewolf-1':
-            case 'werewolf-2':
-            case 'mystic-wolf':
-            case 'dream-wolf':
-            case 'serpent':
-                // Get all werewolf-type players including current player
+            case 'werewolf-team':
                 const allWerewolves = players.filter(p => 
                     ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent']
                     .includes(clientAssignedRoles[p.id])
                 );
                 const otherWerewolves = allWerewolves.filter(p => p.id !== socket.id);
             
+                actionContent.innerHTML = ''; // Clear previous content
+            
                 if (otherWerewolves.length === 0) {
-                    // Only werewolf - show center card selection
+                    // Lone werewolf - show center cards
                     actionContent.innerHTML = `
-                        <div class="phase-header">
-                            <h2>Werewolf's Turn</h2>
-                            <div class="phase-timer" id="turnTimerDisplay">15</div>
-                        </div>
                         <p>You are the only werewolf! View a center card:</p>
                         <div class="center-selection">
                             <div class="center-option" data-card="center1">Center 1</div>
@@ -256,15 +281,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             <div class="center-option" data-card="center3">Center 3</div>
                         </div>
                         <div id="werewolfResult"></div>
-                        <button class="btn-primary" id="skipWerewolfAction" style="margin-top: 15px;">
-                            Skip Viewing
-                        </button>
                     `;
             
-                    let cardSelected = false;
                     document.querySelectorAll('.center-option').forEach(option => {
                         option.addEventListener('click', function() {
-                            cardSelected = true;
                             socket.emit('viewCenterCard', {
                                 roomCode: currentRoom,
                                 card: this.dataset.card
@@ -273,17 +293,10 @@ document.addEventListener('DOMContentLoaded', function () {
                             document.querySelectorAll('.center-option').forEach(opt => {
                                 opt.style.pointerEvents = 'none';
                             });
-                            document.getElementById('skipWerewolfAction').style.display = 'none';
                         });
                     });
-            
-                    document.getElementById('skipWerewolfAction').addEventListener('click', () => {
-                        if (!cardSelected) {
-                            socket.emit('werewolfActionComplete', { roomCode: currentRoom });
-                        }
-                    });
                 } else {
-                    // There are other werewolves - show the werewolf team
+                    // Show werewolf team
                     actionContent.innerHTML = `
                         <div class="werewolf-team">
                             <h3><i class="fas fa-paw"></i> Werewolf Team</h3>
@@ -302,15 +315,39 @@ document.addEventListener('DOMContentLoaded', function () {
                                     `;
                                 }).join('')}
                             </div>
-                            ${allWerewolves.length === 2 ? `
-                                <p class="werewolf-hint">There are ${allWerewolves.length} werewolves in total (including you).</p>
-                            ` : `
-                                <p class="werewolf-hint">There are ${allWerewolves.length} werewolves in total (including you).</p>
-                            `}
                         </div>
                     `;
                 }
                 break;
+
+            case 'mystic-wolf':
+                actionContent.innerHTML = `
+                    <p>Select a player to view:</p>
+                    <div class="player-selection" id="mysticWolfSelection"></div>
+                    <div id="mysticWolfResult"></div>
+                `;
+        
+                players.filter(p => p.id !== socket.id).forEach(player => {
+                    const playerBtn = document.createElement('div');
+                    playerBtn.className = 'player-option';
+                    playerBtn.innerHTML = `
+                        <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                        <div>${player.name}</div>
+                    `;
+                    playerBtn.addEventListener('click', function() {
+                        socket.emit('mysticWolfAction', { 
+                            roomCode: currentRoom, 
+                            target: player.id 
+                        });
+                        this.classList.add('selected');
+                        document.querySelectorAll('.player-option').forEach(btn => {
+                            btn.style.pointerEvents = 'none';
+                        });
+                    });
+                    document.getElementById('mysticWolfSelection').appendChild(playerBtn);
+                });
+                break;
+
             case 'seer':
                 actionContent.innerHTML = `
                     <p>Choose an action:</p>
@@ -329,6 +366,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     actionContent.innerHTML = `
                         <p>Select a player to view:</p>
                         <div class="player-selection" id="playerSelection"></div>
+                        <div id="seerResult"></div>
                     `;
                     
                     const playerSelection = document.getElementById('playerSelection');
@@ -342,6 +380,9 @@ document.addEventListener('DOMContentLoaded', function () {
                         playerBtn.addEventListener('click', () => {
                             socket.emit('seerAction', { roomCode: currentRoom, target: player.id });
                             playerBtn.classList.add('selected');
+                            document.querySelectorAll('.player-option').forEach(btn => {
+                                btn.style.pointerEvents = 'none';
+                            });
                         });
                         playerSelection.appendChild(playerBtn);
                     });
@@ -374,7 +415,6 @@ document.addEventListener('DOMContentLoaded', function () {
                                     roomCode: currentRoom, 
                                     target: selectedCards 
                                 });
-                                // Disable all options after selection
                                 document.querySelectorAll('.center-option').forEach(opt => {
                                     opt.style.pointerEvents = 'none';
                                 });
@@ -413,28 +453,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
                 break;
     
-            case 'mystic-wolf':
-                actionContent.innerHTML = `
-                    <p>Select a player to view:</p>
-                    <div class="player-selection" id="mysticWolfSelection"></div>
-                    <div id="mysticWolfResult"></div>
-                `;
-    
-                players.filter(p => p.id !== socket.id).forEach(player => {
-                    const playerBtn = document.createElement('div');
-                    playerBtn.className = 'player-option';
-                    playerBtn.innerHTML = `
-                        <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
-                        <div>${player.name}</div>
-                    `;
-                    playerBtn.addEventListener('click', () => {
-                        socket.emit('mysticWolfAction', { roomCode: currentRoom, target: player.id });
-                        document.querySelectorAll('.player-option').forEach(btn => btn.style.pointerEvents = 'none');
-                    });
-                    document.getElementById('mysticWolfSelection').appendChild(playerBtn);
-                });
-                break;
-    
             case 'troublemaker':
                 actionContent.innerHTML = `
                     <p>Select 2 players to swap:</p>
@@ -463,6 +481,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             socket.emit('troublemakerAction', { 
                                 roomCode: currentRoom, 
                                 targets: troublemakerSelected 
+                            });
+                            document.querySelectorAll('.player-option').forEach(btn => {
+                                btn.style.pointerEvents = 'none';
                             });
                         }
                     });
@@ -506,7 +527,6 @@ document.addEventListener('DOMContentLoaded', function () {
                             roomCode: currentRoom, 
                             card: card 
                         });
-                        // Disable all options after selection
                         document.querySelectorAll('.center-option').forEach(opt => {
                             opt.style.pointerEvents = 'none';
                         });
@@ -515,35 +535,90 @@ document.addEventListener('DOMContentLoaded', function () {
                 break;
     
             case 'insomniac':
+                // Get the player's current role
+                const currentRole = clientAssignedRoles[socket.id];
+                const roleInfo = getRoleInfo(currentRole.replace('stolen-', ''));
+                
                 actionContent.innerHTML = `
-                    <div class="result-display" id="insomniacResult">
-                        <p>Checking your current role...</p>
+                    <div class="insomniac-result">
+                        <div class="card-reveal ${roleInfo.color}">
+                            <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                            <div class="card-title">${roleInfo.name}</div>
+                            <div class="card-desc">${roleInfo.team.toUpperCase()} TEAM</div>
+                        </div>
+                        <p class="insomniac-message">This is your current role after all changes</p>
                     </div>
                 `;
+                
+                // Automatically notify server the action is complete
                 socket.emit('insomniacAction', { roomCode: currentRoom });
                 break;
-    
+
             case 'witch':
                 actionContent.innerHTML = `
-                    <p>Select a center card to view:</p>
-                    <div class="center-selection">
-                        <div class="center-option" data-card="center1">Center 1</div>
-                        <div class="center-option" data-card="center2">Center 2</div>
-                        <div class="center-option" data-card="center3">Center 3</div>
+                    <div class="witch-instructions">
+                        <p>Select a center card to view:</p>
+                        <div class="center-selection">
+                            <div class="center-option" data-card="center1">Center 1</div>
+                            <div class="center-option" data-card="center2">Center 2</div>
+                            <div class="center-option" data-card="center3">Center 3</div>
+                        </div>
+                        <div id="witchViewResult"></div>
+                        <div id="witchGiveOptions" style="display:none;">
+                            <p>Select a player to give this card to:</p>
+                            <div class="player-selection" id="witchPlayerSelection"></div>
+                        </div>
                     </div>
-                    <div id="witchViewResult"></div>
-                    <div id="witchGiveOptions" style="display:none;"></div>
                 `;
-    
-                let selectedCenter = null;
+            
+                let selectedCenterCard;
                 document.querySelectorAll('.center-option').forEach(option => {
                     option.addEventListener('click', function() {
-                        selectedCenter = this.dataset.card;
+                        selectedCenterCard = this.dataset.card;
                         socket.emit('witchViewAction', { 
                             roomCode: currentRoom, 
-                            centerCard: selectedCenter 
+                            centerCard: selectedCenterCard 
+                        });
+                        
+                        document.querySelectorAll('.center-option').forEach(opt => {
+                            opt.style.pointerEvents = 'none';
                         });
                         this.classList.add('selected');
+                        
+                        // Get player list for the next step
+                        socket.emit('requestPlayerList', currentRoom);
+                        socket.once('playerList', players => {
+                            const otherPlayers = players.filter(p => p.id !== socket.id);
+                            
+                            // Set up player selection UI
+                            const playerSelection = document.getElementById('witchPlayerSelection');
+                            playerSelection.innerHTML = otherPlayers.map(player => `
+                                <div class="player-option" data-player-id="${player.id}">
+                                    <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                                    <div class="player-name">${player.name}</div>
+                                </div>
+                            `).join('');
+                            
+                            // Show player selection
+                            document.getElementById('witchGiveOptions').style.display = 'block';
+                            
+                            // Player selection handler
+                            document.querySelectorAll('#witchPlayerSelection .player-option').forEach(option => {
+                                option.addEventListener('click', function() {
+                                    const targetPlayer = this.dataset.playerId;
+                                    socket.emit('witchGiveAction', {
+                                        roomCode: currentRoom,
+                                        centerCard: selectedCenterCard,
+                                        targetPlayer: targetPlayer
+                                    });
+                                    
+                                    document.querySelectorAll('#witchPlayerSelection .player-option').forEach(opt => {
+                                        opt.style.pointerEvents = 'none';
+                                    });
+                                    this.classList.add('selected');
+                                });
+                            });
+                        });
                     });
                 });
                 break;
@@ -558,19 +633,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                     <div id="drunkResult"></div>
                 `;
-    
+            
                 document.querySelectorAll('.center-option').forEach(option => {
                     option.addEventListener('click', function() {
                         socket.emit('drunkAction', { 
                             roomCode: currentRoom, 
                             targetCenter: this.dataset.card 
                         });
+                        this.classList.add('selected');
                         document.querySelectorAll('.center-option').forEach(opt => {
                             opt.style.pointerEvents = 'none';
                         });
                     });
                 });
-                break;
+                break;                
     
             case 'paranormal-investigator':
                 actionContent.innerHTML = `
@@ -635,6 +711,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 roomCode: currentRoom, 
                                 targets: gremlinSelected 
                             });
+                            document.querySelectorAll('.player-option').forEach(btn => {
+                                btn.style.pointerEvents = 'none';
+                            });
                         }
                     });
                     document.getElementById('gremlinSelection').appendChild(playerBtn);
@@ -650,7 +729,6 @@ document.addEventListener('DOMContentLoaded', function () {
         
                 let serpentHtml = `
                     <div class="serpent-actions">
-                        <h3>Serpent Actions</h3>
                 `;
         
                 if (otherWerewolvesSerpent.length === 0) {
@@ -693,6 +771,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 card: this.dataset.card
                             });
                             this.classList.add('selected');
+                            document.querySelectorAll('.center-option').forEach(opt => {
+                                opt.style.pointerEvents = 'none';
+                            });
                         });
                     });
                 }
@@ -719,6 +800,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                 targets: [this.dataset.target]
                             });
                             this.classList.add('selected');
+                            document.querySelectorAll('.player-option').forEach(btn => {
+                                btn.style.pointerEvents = 'none';
+                            });
                         });
                     });
                 });
@@ -751,6 +835,9 @@ document.addEventListener('DOMContentLoaded', function () {
                                     roomCode: currentRoom,
                                     targets: selectedCenters
                                 });
+                                document.querySelectorAll('.center-option').forEach(opt => {
+                                    opt.style.pointerEvents = 'none';
+                                });
                             }
                         });
                     });
@@ -758,7 +845,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 break;
     
             default:
-                actionContent.innerHTML = `<p>Waiting for ${roleInfo.name} to take their turn...</p>`;
+                actionContent.innerHTML = `
+                    <div class="phase-header">
+                        <h2>${roleInfo.name}'s Turn</h2>
+                        <div class="phase-timer" id="turnTimerDisplay">15</div>
+                    </div>
+                    <p>Waiting for ${roleInfo.name} to take their turn...</p>
+                `;
         }
     }
 
@@ -767,7 +860,6 @@ document.addEventListener('DOMContentLoaded', function () {
         roles = receivedRoles;
         playerCount = players.length;
         
-        // Update player list
         playerListElement.innerHTML = players.map(player => `
             <li>
                 <div class="player-avatar">${player.name?.charAt(0).toUpperCase() || '?'}</div>
@@ -776,23 +868,18 @@ document.addEventListener('DOMContentLoaded', function () {
             </li>
         `).join('');
 
-        // Update roles required text
         rolesRequiredText.textContent = `Select ${playerCount + 3} roles`;
         
-        // Update host status and UI
         isHost = players[0]?.id === socket.id;
         document.getElementById('roles').textContent = isHost ? "Edit Roles" : "View Roles";
         updateStartGameButtonState();
         
-        // Show room info after joining
         document.getElementById('roomInfo').style.display = 'block';
         roomDisplayElement.textContent = currentRoom;
     });
 
     socket.on('allPlayersConfirmed', () => {
-        // This ensures all players are synced before starting night phase
         console.log('All players confirmed - starting night phase');
-        // The nightTurn event will handle the actual UI transition
     });
     
     socket.on('clearConfirmationScreen', () => {
@@ -803,7 +890,6 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     
     socket.on('prepareForNightPhase', () => {
-        // Clear any existing UI
         gameScreenElement.innerHTML = '';
         console.log('Preparing for night phase...');
     });
@@ -812,7 +898,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const confirmedCount = Object.keys(confirmedPlayers).length;
         const totalPlayers = players.length;
         
-        // Update or create the confirmation display
         let resultDisplay = document.querySelector('.result-display');
         if (!resultDisplay) {
             resultDisplay = document.createElement('div');
@@ -830,7 +915,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (timerDisplay) {
             timerDisplay.textContent = timer;
             
-            // Add visual feedback when time is running low
             if (timer <= 5) {
                 timerDisplay.classList.add('pulse');
                 timerDisplay.style.color = 'var(--accent-red)';
@@ -843,13 +927,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
     socket.on('centerCardViewed', ({ card, role }) => {
         const roleInfo = getRoleInfo(role);
-        let resultDiv = document.getElementById('werewolfResult');
-        const actionContent = document.getElementById('actionContent'); // More reliable than querySelector
+        let resultDiv = document.getElementById('werewolfResult') || 
+                       document.getElementById('serpentCenterResult') ||
+                       document.createElement('div');
         
-        if (!resultDiv) {
-            resultDiv = document.createElement('div');
+        if (!resultDiv.id) {
             resultDiv.id = 'werewolfResult';
-            actionContent.appendChild(resultDiv);
+            document.getElementById('actionContent').appendChild(resultDiv);
         }
         
         resultDiv.innerHTML = `
@@ -871,6 +955,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (timer <= 30) {
                 timerDisplay.classList.add('pulse');
                 timerDisplay.style.color = 'var(--accent-red)';
+            } else {
+                timerDisplay.classList.remove('pulse');
+                timerDisplay.style.color = 'var(--accent-blue)';
             }
         }
     });
@@ -885,6 +972,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (timer <= 5) {
                 timerDisplay.classList.add('pulse');
                 timerDisplay.style.color = 'var(--accent-red)';
+            } else {
+                timerDisplay.classList.remove('pulse');
+                timerDisplay.style.color = 'var(--accent-blue)';
             }
         }
     });
@@ -892,13 +982,7 @@ document.addEventListener('DOMContentLoaded', function () {
     socket.on('gameStart', (assignedRoles) => {
         if (Object.keys(clientAssignedRoles).length > 0) {
             console.error('Received duplicate gameStart! Current roles:', clientAssignedRoles);
-        }
-        clientAssignedRoles = assignedRoles;
-
-        // Verify the assigned role matches what the server sent
-        if (assignedRoles[socket.id] !== clientAssignedRoles[socket.id]) {
-            console.error("Role mismatch between client and server!");
-            // Handle error or reconnect
+            return;
         }
         
         clientAssignedRoles = assignedRoles;
@@ -908,32 +992,43 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     socket.on('nightTurn', ({ currentRole, currentPlayer, isOriginalRole, actualCurrentRole }) => {
-        // Completely clear and rebuild the UI
-        gameScreenElement.innerHTML = '';
+        console.log('Received nightTurn event:', { currentRole, currentPlayer, isOriginalRole, actualCurrentRole });
         
-        const roleInfo = getRoleInfo(currentRole.replace('stolen-', ''));
-        const header = document.createElement('div');
-        header.className = 'phase-header';
-        header.innerHTML = `
-            <h2>${roleInfo.name}'s Turn</h2>
-            <div class="phase-timer" id="turnTimerDisplay">15</div>
+        // Clear any existing elements
+        gameScreenElement.innerHTML = `
+            <div class="phase-header">
+                <h2>${getRoleInfo(currentRole.replace('stolen-', '')).name}'s Turn</h2>
+                <div class="phase-timer" id="turnTimerDisplay">15</div>
+            </div>
+            <div id="actionContent"></div>
         `;
-        gameScreenElement.appendChild(header);
         
-        const content = document.createElement('div');
-        content.id = 'actionContent';
-        gameScreenElement.appendChild(content);
+        // Start the timer
+        let timer = 15;
+        const timerDisplay = document.getElementById('turnTimerDisplay');
+        const timerInterval = setInterval(() => {
+            timer--;
+            timerDisplay.textContent = timer;
+            
+            if (timer <= 5) {
+                timerDisplay.classList.add('pulse');
+                timerDisplay.style.color = 'var(--accent-red)';
+            } else {
+                timerDisplay.classList.remove('pulse');
+                timerDisplay.style.color = 'var(--accent-blue)';
+            }
+            
+            if (timer <= 0) {
+                clearInterval(timerInterval);
+            }
+        }, 1000);
     
-        if (currentPlayer === socket.id) {
-            // Show action UI
-            socket.emit('requestPlayerList', currentRoom);
-            socket.once('playerList', players => {
-                createNightActionUI(currentRole.replace('stolen-', ''), players);
-            });
-        } else {
-            // Show waiting UI
-            content.innerHTML = `<p>Waiting for ${roleInfo.name} to take their turn...</p>`;
-        }
+        // Get player list and create the full UI
+        socket.emit('requestPlayerList', currentRoom);
+        socket.once('playerList', players => {
+            console.log('Received player list:', players);
+            createNightActionUI(currentRole.replace('stolen-', ''), players, currentPlayer === socket.id);
+        });
     });
 
     socket.on('seerResult', ({ targetRole }) => {
@@ -941,7 +1036,6 @@ document.addEventListener('DOMContentLoaded', function () {
                              document.getElementById('seerCenterResult');
         
         if (Array.isArray(targetRole)) {
-            // Handle center cards view
             resultElement.innerHTML = targetRole.map((role, index) => {
                 const roleInfo = getRoleInfo(role);
                 return `
@@ -953,7 +1047,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 `;
             }).join('');
         } else {
-            // Handle single player view
             const roleInfo = getRoleInfo(targetRole);
             resultElement.innerHTML = `
                 <div class="card-reveal ${roleInfo.color}">
@@ -972,6 +1065,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
                 <div class="card-title">${roleInfo.name}</div>
                 <div class="card-desc">${card.toUpperCase()}</div>
+            </div>
+        `;
+    });
+
+    socket.on('witchViewResult', ({ centerCard, centerRole }) => {
+        const roleInfo = getRoleInfo(centerRole);
+        const resultElement = document.getElementById('witchViewResult');
+        
+        resultElement.innerHTML = `
+            <div class="card-reveal ${roleInfo.color}">
+                <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                <div class="card-title">${roleInfo.name}</div>
+                <div class="card-desc">${centerCard.toUpperCase()}</div>
+            </div>
+        `;
+    });
+    
+    socket.on('witchGiveResult', ({ message }) => {
+        const resultElement = document.getElementById('witchViewResult');
+        resultElement.innerHTML += `
+            <div class="witch-success">
+                <i class="fas fa-check-circle"></i> ${message}
             </div>
         `;
     });
@@ -1012,6 +1127,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     `).join('')}
                 </div>
             `;
+
+            document.querySelectorAll('.vote-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    socket.emit('castVote', {
+                        roomCode: currentRoom,
+                        target: this.dataset.playerId
+                    });
+                    this.classList.add('selected');
+                    document.querySelectorAll('.vote-option').forEach(opt => {
+                        opt.style.pointerEvents = 'none';
+                    });
+                });
+            });
         });
     });
 
@@ -1040,6 +1168,22 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                     `;
                 }).join('')}
+                
+                <div class="center-cards-reveal">
+                    <h3>Center Cards</h3>
+                    <div class="center-cards">
+                        ${centerCards.map((card, index) => {
+                            const roleInfo = getRoleInfo(card);
+                            return `
+                                <div class="reveal-card ${roleInfo.color}">
+                                    <div class="role-icon"><i class="${roleInfo.icon}"></i></div>
+                                    <h3>Center ${index + 1}</h3>
+                                    <p>${roleInfo.name}</p>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
             </div>
             
             <button class="btn-primary" id="playAgainButton">
@@ -1057,6 +1201,9 @@ document.addEventListener('DOMContentLoaded', function () {
         showElement(lobbyElement);
         playerListElement.innerHTML = '';
         document.getElementById('roomInfo').style.display = 'none';
+        clientAssignedRoles = {};
+        roles = [];
+        isProcessingTurn = false;
     });
 
     // Utility Functions

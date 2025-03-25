@@ -359,8 +359,12 @@
         .phase-timer {
             font-size: 1.5rem;
             font-weight: bold;
-            color: var(--accent-red);
+            color: var(--accent-blue);
             margin: 0.5rem 0;
+        }
+
+        .phase-timer.pulse {
+            color: var(--accent-red);
         }
 
         .card-container {
@@ -419,6 +423,7 @@
 
         .card-back.neutral {
             background: linear-gradient(135deg, #b08968, #e6ccb2);
+            color: #333;
         }
 
         .card-icon {
@@ -441,6 +446,7 @@
             display: flex;
             gap: 1rem;
             margin: 1.5rem 0;
+            justify-content: center;
         }
 
         .center-option {
@@ -451,6 +457,7 @@
             cursor: pointer;
             transition: all 0.3s ease;
             flex: 1;
+            max-width: 120px;
             border: 2px solid rgba(255, 255, 255, 0.1);
         }
 
@@ -491,6 +498,10 @@
             text-align: center;
             cursor: pointer;
             transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .player-option:hover {
@@ -507,6 +518,7 @@
             border-radius: 12px;
             padding: 1.5rem;
             margin-top: 1.5rem;
+            text-align: center;
         }
 
         /* Voting Phase */
@@ -529,6 +541,10 @@
             text-align: center;
             cursor: pointer;
             transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .vote-option:hover {
@@ -539,6 +555,23 @@
             background-color: var(--accent-red);
             color: white;
             transform: scale(1.05);
+        }
+
+        .error-message {
+            padding: 20px;
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .error-message h3 {
+            color: var(--accent-red);
+        }
+
+        .error-message button {
+            margin-top: 15px;
         }
 
         /* Game Over Screen */
@@ -567,6 +600,7 @@
         .game-result.tanner {
             background-color: rgba(255, 209, 102, 0.2);
             border: 2px solid var(--accent-gold);
+            color: #333;
         }
 
         .role-reveal {
@@ -599,41 +633,20 @@
             font-style: italic;
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .center-cards-reveal {
+            grid-column: 1 / -1;
+            margin-top: 2rem;
         }
 
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-            100% { transform: scale(1); }
+        .center-cards {
+            display: flex;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
         }
 
-        .pulse {
-            animation: pulse 1.5s infinite;
-        }
-
-        /* Responsive Adjustments */
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2rem;
-            }
-
-            .lobby-controls {
-                flex-direction: column;
-            }
-
-            .role-grid {
-                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            }
-
-            .player-list ul {
-                grid-template-columns: 1fr;
-            }
-        }
-
+        /* Werewolf Team Display */
         .werewolf-team {
             background: rgba(139, 0, 0, 0.1);
             padding: 15px;
@@ -695,10 +708,104 @@
             opacity: 0.8;
         }
 
-        .werewolf-hint {
-            font-style: italic;
-            font-size: 0.9em;
+        /* Card Reveal Styles */
+        .card-reveal {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .card-reveal.good {
+            background: rgba(0, 100, 0, 0.1);
+            border: 1px solid rgba(0, 100, 0, 0.3);
+        }
+
+        .card-reveal.evil {
+            background: rgba(139, 0, 0, 0.1);
+            border: 1px solid rgba(139, 0, 0, 0.3);
+        }
+
+        .card-reveal.neutral {
+            background: rgba(169, 169, 169, 0.1);
+            border: 1px solid rgba(169, 169, 169, 0.3);
+        }
+
+        /* Witch Styles */
+        .witch-success {
+            background: rgba(46, 125, 50, 0.2);
+            padding: 10px;
+            border-radius: 5px;
             margin-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .witch-success i {
+            color: #2e7d32;
+        }
+
+        .insomniac-result {
+            text-align: center;
+            margin-top: 2rem;
+        }
+
+        .insomniac-message {
+            margin-top: 1rem;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .lobby-controls {
+                flex-direction: column;
+            }
+
+            .role-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+
+            .player-list ul {
+                grid-template-columns: 1fr;
+            }
+
+            .center-selection {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .center-option {
+                max-width: 100%;
+                width: 100%;
+            }
+
+            .card-container {
+                width: 150px;
+                height: 225px;
+            }
         }
     </style>
 </head>
@@ -764,7 +871,7 @@
                             <div class="role-name">Werewolf</div>
                         </div>
                         <div class="role-card" data-role="serpent">
-                            <div class="role-icon"><i class="fas fa-snake"></i></div>
+                            <div class="role-icon"><i class="fas fa-staff-snake"></i></div>
                             <div class="role-name">Serpent</div>
                         </div>
                         <div class="role-card" data-role="mystic-wolf">
