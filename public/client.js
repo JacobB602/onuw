@@ -1093,6 +1093,57 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     });
 
+    socket.on('squireResult', ({ werewolves, noWerewolves, message }) => {
+        const resultElement = document.getElementById('squireResult');
+        
+        if (noWerewolves) {
+            resultElement.innerHTML = `
+                <div class="squire-result">
+                    <h3>${message}</h3>
+                    <div class="squire-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        There are no Werewolves to support!
+                    </div>
+                </div>
+            `;
+        } else {
+            resultElement.innerHTML = `
+                <div class="squire-result">
+                    <h3>${message}</h3>
+                    <div class="werewolf-list">
+                        ${werewolves.map(werewolf => {
+                            const roleInfo = getRoleInfo(werewolf.currentRole);
+                            const originalRoleInfo = getRoleInfo(werewolf.originalRole);
+                            const changed = werewolf.currentRole !== werewolf.originalRole;
+                            
+                            return `
+                                <div class="werewolf-item ${roleInfo.color}">
+                                    <div class="player-avatar">${werewolf.name.charAt(0)}</div>
+                                    <div class="werewolf-details">
+                                        <div class="werewolf-name">${werewolf.name}</div>
+                                        <div class="squire-role-display">
+                                            <i class="${roleInfo.icon} squire-role-icon"></i>
+                                            <span>${roleInfo.name}</span>
+                                        </div>
+                                        ${changed ? `
+                                            <div class="squire-original-role">
+                                                Originally: ${originalRoleInfo.name}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div class="squire-warning">
+                        <i class="fas fa-info-circle"></i>
+                        You win if any of these survive!
+                    </div>
+                </div>
+            `;
+        }
+    });
+
     socket.on('startDayPhase', () => {
         console.log('Day phase starting');
         gameScreenElement.innerHTML = `

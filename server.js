@@ -23,16 +23,8 @@ app.get('/', (req, res) => {
 
 const rooms = {};
 
-function getGameRoleTurnOrder(selectedRoles) {
-    // Always include werewolf-team phase if there are any werewolf roles
-    const hasWerewolves = selectedRoles.some(role => 
-        ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(role)
-    );
-    
+function getGameRoleTurnOrder(selectedRoles) {   
     const turnOrder = [
-        // Werewolf team phase (all werewolves see each other or center cards)
-        ...(hasWerewolves ? ["werewolf-team"] : []),
-        
         // Individual werewolf roles
         "mystic-wolf",
         "dream-wolf",
@@ -40,7 +32,7 @@ function getGameRoleTurnOrder(selectedRoles) {
         
         // Information roles
         "minion",
-        "squire",
+        "apprentice-tanner",
         
         // Action roles
         "seer",
@@ -53,11 +45,8 @@ function getGameRoleTurnOrder(selectedRoles) {
         "drunk",
         
         // End of night roles
-        "insomniac",
-        
-        // Neutral roles
-        "tanner",
-        "apprentice-tanner"
+        "squire",
+        "insomniac"       
     ];
 
     // Filter to only include roles that are in the game
@@ -434,17 +423,22 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const currentWerewolves = room.players.filter(player => 
-            ["werewolf-1", "werewolf-2", "mystic-wolf", "dream-wolf", "serpent"]
-            .includes(room.assignedRoles[player.id])
-        ).map(w => ({
+        // Find all werewolves with their CURRENT roles
+        const currentWerewolves = room.players.filter(player => {
+            const role = room.assignedRoles[player.id];
+            return ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(role);
+        }).map(w => ({
             name: w.name || "Unnamed",
-            originalRole: room.originalRoles[w.id]
+            currentRole: room.assignedRoles[w.id],
+            originalRole: room.startingRoles[w.id]
         }));
     
         io.to(socket.id).emit('squireResult', { 
             werewolves: currentWerewolves,
-            noWerewolves: currentWerewolves.length === 0
+            noWerewolves: currentWerewolves.length === 0,
+            message: currentWerewolves.length === 0 ?
+                "There are no Werewolves in the game!" :
+                "Current Werewolf Team:"
         });
     });
 
