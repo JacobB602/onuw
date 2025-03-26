@@ -260,18 +260,16 @@ document.addEventListener('DOMContentLoaded', function () {
             actionContent.innerHTML = `<p>Waiting for ${roleInfo.name} to take their turn...</p>`;
             return;
         }
-
-        werewolfTurn(players, clientAssignedRoles, socket.id);
     
         switch(cleanRole) {
             
             case 'mystic-wolf':
-                actionContent.innerHTML = `
+            actionContent.innerHTML = `
                     <p>Select a player to view:</p>
                     <div class="player-selection" id="mysticWolfSelection"></div>
                     <div id="mysticWolfResult"></div>
                 `;
-        
+            
                 players.filter(p => p.id !== socket.id).forEach(player => {
                     const playerBtn = document.createElement('div');
                     playerBtn.className = 'player-option';
@@ -800,94 +798,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    function werewolfTurn(players, assignedRoles, socketId) {
-        const werewolfRoles = ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'];
-        const werewolfPlayers = [];
-
-        // Find all players with werewolf roles
-        for (const playerId in assignedRoles) {
-            if (werewolfRoles.includes(assignedRoles[playerId])) {
-                werewolfPlayers.push(playerId);
-            }
-        }
-
-        // Check if current player is a werewolf
-        const isWerewolf = werewolfPlayers.includes(socketId);
-
-        actionContent.innerHTML = `
-            <div class="phase-header">
-                <h2>Werewolf's Turn</h2>
-                <div class="phase-timer" id="werewolfTimerDisplay">15</div>
-            </div>
-        `;
-
-        if (isWerewolf) {
-            if (werewolfPlayers.length === 1) {
-                // Only one werewolf - show center card selection
-                actionContent.innerHTML += `
-                    <p>You are the only werewolf. Select a center card to view:</p>
-                    <div class="center-selection">
-                        <div class="center-option" data-card="center1">Center 1</div>
-                        <div class="center-option" data-card="center2">Center 2</div>
-                        <div class="center-option" data-card="center3">Center 3</div>
-                    </div>
-                    <div id="werewolfResult"></div>
-                `;
-
-                document.querySelectorAll('.center-option').forEach(option => {
-                    option.addEventListener('click', function() {
-                        const card = this.dataset.card;
-                        socket.emit('werewolfViewCenter', {
-                            roomCode: currentRoom,
-                            card: card
-                        });
-                        this.classList.add('selected');
-                        document.querySelectorAll('.center-option').forEach(opt => {
-                            opt.style.pointerEvents = 'none';
-                        });
-                    });
-                });
-            } else {
-                // Multiple werewolves - show other werewolves
-                const otherWerewolves = werewolfPlayers.filter(id => id !== socketId);
-                actionContent.innerHTML += `
-                    <p>Other werewolves in the game:</p>
-                    <div class="werewolf-list">
-                        ${otherWerewolves.map(werewolfId => {
-                            const player = players.find(p => p.id === werewolfId);
-                            return `
-                                <div class="werewolf-player">
-                                    <div class="player-avatar">${player?.name?.charAt(0).toUpperCase() || '?'}</div>
-                                    <div class="player-name">${player?.name || 'Unknown'}</div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
-        }
-
-        // Start the timer
-        let timer = 15;
-        const timerDisplay = document.getElementById('werewolfTimerDisplay');
-        const timerInterval = setInterval(() => {
-            timer--;
-            timerDisplay.textContent = timer;
-            
-            if (timer <= 5) {
-                timerDisplay.classList.add('pulse');
-                timerDisplay.style.color = 'var(--accent-red)';
-            } else {
-                timerDisplay.classList.remove('pulse');
-                timerDisplay.style.color = 'var(--accent-blue)';
-            }
-            
-            if (timer <= 0) {
-                clearInterval(timerInterval);
-            }
-        }, 1000);
-    }
-
     // Socket Event Handlers
     socket.on('roomUpdate', (players, receivedRoles) => {
         roles = receivedRoles;
@@ -1062,6 +972,18 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('Received player list:', players);
             createNightActionUI(currentRole.replace('stolen-', ''), players, currentPlayer === socket.id);
         });
+    });
+
+    socket.on('mysticWolfResult', ({ targetRole }) => {
+        const resultElement = document.getElementById('mysticWolfResult');
+    
+        const roleInfo = getRoleInfo(targetRole);
+        resultElement.innerHTML = `
+            <div class="card-reveal ${roleInfo.color}">
+                <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                <div class="card-title">${roleInfo.name}</div>
+            </div>
+        `;
     });
 
     socket.on('seerResult', ({ targetRole }) => {

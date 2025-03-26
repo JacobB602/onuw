@@ -240,8 +240,14 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const targetRole = getShownRole(room, target);
-        io.to(socket.id).emit('mysticWolfResult', { targetRole });
+        // Mystic Wolf only views one player's card
+        const playerRole = getShownRole(room, target); // Assuming you have getShownRole function.
+        io.to(socket.id).emit('mysticWolfResult', { 
+            targetId: targetPlayer.id, 
+            targetRole: targetPlayer.role,
+            targetName: targetPlayer.name 
+        });
+    
     });
 
     socket.on('robberAction', ({ roomCode, target }) => {
