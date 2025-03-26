@@ -260,66 +260,11 @@ document.addEventListener('DOMContentLoaded', function () {
             actionContent.innerHTML = `<p>Waiting for ${roleInfo.name} to take their turn...</p>`;
             return;
         }
+
+        werewolfTurn(players, clientAssignedRoles, socket.id);
     
         switch(cleanRole) {
-            case 'werewolf-team':
-                const allWerewolves = players.filter(p => 
-                    ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent']
-                    .includes(clientAssignedRoles[p.id])
-                );
-                const otherWerewolves = allWerewolves.filter(p => p.id !== socket.id);
             
-                actionContent.innerHTML = ''; // Clear previous content
-            
-                if (otherWerewolves.length === 0) {
-                    // Lone werewolf - show center cards
-                    actionContent.innerHTML = `
-                        <p>You are the only werewolf! View a center card:</p>
-                        <div class="center-selection">
-                            <div class="center-option" data-card="center1">Center 1</div>
-                            <div class="center-option" data-card="center2">Center 2</div>
-                            <div class="center-option" data-card="center3">Center 3</div>
-                        </div>
-                        <div id="werewolfResult"></div>
-                    `;
-            
-                    document.querySelectorAll('.center-option').forEach(option => {
-                        option.addEventListener('click', function() {
-                            socket.emit('viewCenterCard', {
-                                roomCode: currentRoom,
-                                card: this.dataset.card
-                            });
-                            this.classList.add('selected');
-                            document.querySelectorAll('.center-option').forEach(opt => {
-                                opt.style.pointerEvents = 'none';
-                            });
-                        });
-                    });
-                } else {
-                    // Show werewolf team
-                    actionContent.innerHTML = `
-                        <div class="werewolf-team">
-                            <h3><i class="fas fa-paw"></i> Werewolf Team</h3>
-                            <p>Your fellow werewolves:</p>
-                            <div class="werewolf-list">
-                                ${otherWerewolves.map(wolf => {
-                                    const roleInfo = getRoleInfo(clientAssignedRoles[wolf.id]);
-                                    return `
-                                        <div class="werewolf-member ${roleInfo.color}">
-                                            <div class="werewolf-avatar">${wolf.name.charAt(0).toUpperCase()}</div>
-                                            <div class="werewolf-info">
-                                                <div class="werewolf-name">${wolf.name}</div>
-                                                <div class="werewolf-role">${roleInfo.name}</div>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
-                break;
-
             case 'mystic-wolf':
                 actionContent.innerHTML = `
                     <p>Select a player to view:</p>
@@ -537,7 +482,7 @@ document.addEventListener('DOMContentLoaded', function () {
             case 'insomniac':
                 // Get the player's current role
                 const currentRole = clientAssignedRoles[socket.id];
-                const roleInfo = getRoleInfo(currentRole.replace('stolen-', ''));
+                const roleInfo = getRoleInfo(actualCurrentRole.replace('stolen-', ''));
                 
                 actionContent.innerHTML = `
                     <div class="insomniac-result">
@@ -853,6 +798,94 @@ document.addEventListener('DOMContentLoaded', function () {
                     <p>Waiting for ${roleInfo.name} to take their turn...</p>
                 `;
         }
+    }
+
+    function werewolfTurn(players, assignedRoles, socketId) {
+        const werewolfRoles = ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'];
+        const werewolfPlayers = [];
+
+        // Find all players with werewolf roles
+        for (const playerId in assignedRoles) {
+            if (werewolfRoles.includes(assignedRoles[playerId])) {
+                werewolfPlayers.push(playerId);
+            }
+        }
+
+        // Check if current player is a werewolf
+        const isWerewolf = werewolfPlayers.includes(socketId);
+
+        actionContent.innerHTML = `
+            <div class="phase-header">
+                <h2>Werewolf's Turn</h2>
+                <div class="phase-timer" id="werewolfTimerDisplay">15</div>
+            </div>
+        `;
+
+        if (isWerewolf) {
+            if (werewolfPlayers.length === 1) {
+                // Only one werewolf - show center card selection
+                actionContent.innerHTML += `
+                    <p>You are the only werewolf. Select a center card to view:</p>
+                    <div class="center-selection">
+                        <div class="center-option" data-card="center1">Center 1</div>
+                        <div class="center-option" data-card="center2">Center 2</div>
+                        <div class="center-option" data-card="center3">Center 3</div>
+                    </div>
+                    <div id="werewolfResult"></div>
+                `;
+
+                document.querySelectorAll('.center-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        const card = this.dataset.card;
+                        socket.emit('werewolfViewCenter', {
+                            roomCode: currentRoom,
+                            card: card
+                        });
+                        this.classList.add('selected');
+                        document.querySelectorAll('.center-option').forEach(opt => {
+                            opt.style.pointerEvents = 'none';
+                        });
+                    });
+                });
+            } else {
+                // Multiple werewolves - show other werewolves
+                const otherWerewolves = werewolfPlayers.filter(id => id !== socketId);
+                actionContent.innerHTML += `
+                    <p>Other werewolves in the game:</p>
+                    <div class="werewolf-list">
+                        ${otherWerewolves.map(werewolfId => {
+                            const player = players.find(p => p.id === werewolfId);
+                            return `
+                                <div class="werewolf-player">
+                                    <div class="player-avatar">${player?.name?.charAt(0).toUpperCase() || '?'}</div>
+                                    <div class="player-name">${player?.name || 'Unknown'}</div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        // Start the timer
+        let timer = 15;
+        const timerDisplay = document.getElementById('werewolfTimerDisplay');
+        const timerInterval = setInterval(() => {
+            timer--;
+            timerDisplay.textContent = timer;
+            
+            if (timer <= 5) {
+                timerDisplay.classList.add('pulse');
+                timerDisplay.style.color = 'var(--accent-red)';
+            } else {
+                timerDisplay.classList.remove('pulse');
+                timerDisplay.style.color = 'var(--accent-blue)';
+            }
+            
+            if (timer <= 0) {
+                clearInterval(timerInterval);
+            }
+        }, 1000);
     }
 
     // Socket Event Handlers
