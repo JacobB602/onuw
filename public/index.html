@@ -727,8 +727,19 @@
         }
 
         .card-reveal.neutral {
-            background: rgba(169, 169, 169, 0.1);
-            border: 1px solid rgba(169, 169, 169, 0.3);
+            background: rgba(255, 209, 102, 0.1); /* Using your gold color */
+            border: 1px solid var(--accent-gold); /* Using your gold variable */
+            color: var(--text-primary); /* Ensures text remains readable */
+        }
+
+        .card-reveal .card-title {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-reveal .card-desc {
+            font-weight: bold;
+            font-size: 1rem;
         }
 
         /* Witch Styles */
@@ -891,6 +902,45 @@
             gap: 0.5rem;
             margin-top: 1rem;
             font-weight: bold;
+        }
+
+        .tanner-result {
+            background-color: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 8px;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .tanner-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin: 1rem 0;
+            padding: 1rem;
+            background-color: rgba(255, 209, 102, 0.1);
+            border-radius: 8px;
+        }
+
+        .tanner-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--accent-gold);
+            color: var(--bg-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .tanner-instruction {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-style: italic;
         }
     </style>
 </head>

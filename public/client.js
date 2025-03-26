@@ -366,14 +366,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     });
                 });
                 break;
-    
+
             case 'robber':
                 actionContent.innerHTML = `
                     <p>Select a player to rob:</p>
                     <div class="player-selection" id="robberSelection"></div>
                     <div id="robberResult"></div>
                 `;
-            
+                
                 players.filter(p => p.id !== socket.id).forEach(player => {
                     const playerBtn = document.createElement('div');
                     playerBtn.className = 'player-option';
@@ -389,7 +389,6 @@ document.addEventListener('DOMContentLoaded', function () {
                         playerBtn.classList.add('selected');
                         document.querySelectorAll('.player-option').forEach(btn => {
                             btn.style.pointerEvents = 'none';
-                            btn.style.opacity = '0.6';
                         });
                     });
                     document.getElementById('robberSelection').appendChild(playerBtn);
@@ -441,6 +440,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                 `;
                 socket.emit('minionAction', { roomCode: currentRoom });
+                break;
+
+            case 'apprentice-tanner':
+                actionContent.innerHTML = `
+                    <div class="result-display" id="apprenticeTannerResult">
+                        <p>Identifying the Tanner...</p>
+                    </div>
+                `;
+                socket.emit('apprenticeTannerAction', { roomCode: currentRoom });
                 break;
     
             case 'squire':
@@ -1033,6 +1041,34 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    socket.on('apprenticeTannerResult', ({ tannerName, exists }) => {
+        const resultElement = document.getElementById('apprenticeTannerResult');
+        
+        if (exists) {
+            resultElement.innerHTML = `
+                <div class="tanner-result">
+                    <h3><i class="fas fa-skull"></i> Tanner Found</h3>
+                    <div class="tanner-display">
+                        <div class="tanner-avatar">${tannerName.charAt(0)}</div>
+                        <div class="tanner-name">${tannerName}</div>
+                    </div>
+                    <div class="tanner-instruction">
+                        You win if the village kills the tanner!
+                    </div>
+                </div>
+            `;
+        } else {
+            resultElement.innerHTML = `
+                <div class="tanner-result">
+                    <h3><i class="fas fa-question-circle"></i> No Tanner</h3>
+                    <div class="tanner-instruction">
+                        You must get yourself killed to win!
+                    </div>
+                </div>
+            `;
+        }
+    });
+
     socket.on('seerResult', ({ targetRole }) => {
         const resultElement = document.getElementById('seerResult') || 
                              document.getElementById('seerCenterResult');
@@ -1071,6 +1107,19 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     });
 
+    socket.on('robberResult', ({ newRole, targetName }) => {
+        const resultElement = document.getElementById('robberResult');
+        const roleInfo = getRoleInfo(newRole);
+        
+        resultElement.innerHTML = `
+            <div class="card-reveal ${roleInfo.color}">
+                <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                <div class="card-title">You stole ${targetName}'s role!</div>
+                <div class="card-desc">You are now: ${roleInfo.name}</div>
+            </div>
+        `;
+    });
+
     socket.on('witchViewResult', ({ centerCard, centerRole }) => {
         const roleInfo = getRoleInfo(centerRole);
         const resultElement = document.getElementById('witchViewResult');
@@ -1102,7 +1151,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <h3>${message}</h3>
                     <div class="squire-warning">
                         <i class="fas fa-exclamation-triangle"></i>
-                        There are no Werewolves to support!
+                        You must ensure someone dies to win!
                     </div>
                 </div>
             `;
@@ -1137,7 +1186,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </div>
                     <div class="squire-warning">
                         <i class="fas fa-info-circle"></i>
-                        You win if any of these survive!
+                        Remember: You must ensure the werewolves survive!
                     </div>
                 </div>
             `;

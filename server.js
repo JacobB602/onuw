@@ -255,17 +255,27 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        if (room.assignedRoles[socket.id].startsWith('stolen-')) {
-            io.to(socket.id).emit('error', { message: "You can only steal one role per game." });
-            return;
-        }
-    
+        // Get both roles
         const robberRole = room.assignedRoles[socket.id];
         const targetRole = room.assignedRoles[target];
-        room.assignedRoles[socket.id] = `stolen-${targetRole}`;
+    
+        // Perform the swap
+        room.assignedRoles[socket.id] = targetRole;
         room.assignedRoles[target] = robberRole;
     
-        io.to(socket.id).emit('robberResult', { newRole: targetRole });
+        // Get the target player's name
+        const targetPlayer = room.players.find(p => p.id === target);
+        
+        // Send the result to the Robber
+        io.to(socket.id).emit('robberResult', {
+            newRole: targetRole,
+            targetName: targetPlayer?.name || "Unknown"
+        });
+    
+        // Mark action as complete
+        if (room.gameState) {
+            room.gameState.completedActions.push('robber');
+        }
     });
 
     socket.on('troublemakerAction', ({ roomCode, targets }) => {
@@ -416,6 +426,21 @@ io.on('connection', (socket) => {
             if (werewolfPlayer) {
                 io.to(werewolfPlayer.id).emit('minionViewing');
             }
+        });
+    });
+
+    socket.on('apprenticeTannerAction', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        // Find the Tanner (if exists)
+        const tanner = room.players.find(player => 
+            room.assignedRoles[player.id] === 'tanner'
+        );
+    
+        io.to(socket.id).emit('apprenticeTannerResult', { 
+            tannerName: tanner?.name || null,
+            exists: !!tanner
         });
     });
 
@@ -680,8 +705,14 @@ io.on('connection', (socket) => {
         const votedPlayerRole = someoneDied ? assignedRoles[votedPlayerId] : null;
     
         // Tanner wins if they were voted out
-        if (someoneDied && tannerRoles.includes(votedPlayerRole)) {
-            return "Tanner";
+        if (someoneDied && votedPlayerRole === "tanner") {
+            return "Tanner and Apprentice Tanner"; // Both win!
+        }
+    
+        // Apprentice Tanner wins if they're killed when no Tanner exists
+        if (someoneDied && votedPlayerRole === "apprentice-tanner") {
+            const tannerExists = players.some(p => assignedRoles[p.id] === 'tanner');
+            if (!tannerExists) return "Apprentice Tanner";
         }
     
         // Check if any werewolves exist
