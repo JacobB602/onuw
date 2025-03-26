@@ -612,7 +612,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div id="piResult"></div>
                 `;
             
-                // Track investigation state
                 let piInvestigations = [];
                 let piTransformed = false;
             
@@ -626,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
                         <div>${player.name}</div>
                     `;
+                    
                     playerBtn.addEventListener('click', async function() {
                         if (piTransformed) return;
                         
@@ -633,16 +633,37 @@ document.addEventListener('DOMContentLoaded', function () {
                         this.style.pointerEvents = 'none';
                         
                         // Investigate this player
-                        socket.emit('piInvestigateOne', {
+                        socket.emit('piAction', {  // Still using piAction here
                             roomCode: currentRoom,
                             target: player.id
                         });
                         
                         // Wait for server response
-                        await new Promise(resolve => {
-                            socket.once('piInvestigateOneResult', resolve);
+                        const result = await new Promise(resolve => {
+                            socket.once('piResult', resolve);
                         });
+                        
+                        if (result.error) {
+                            document.getElementById('piResult').innerHTML = `
+                                <div class="error-message">${result.error}</div>
+                            `;
+                            return;
+                        }
+                        
+                        displayPIResult(result, player.name);
+                        
+                        if (result.transformed) {
+                            piTransformed = true;
+                        } else if (result.canInvestigateAgain) {
+                            // Enable remaining players for second investigation
+                            document.querySelectorAll('.player-option').forEach(btn => {
+                                if (!btn.classList.contains('selected')) {
+                                    btn.style.pointerEvents = 'auto';
+                                }
+                            });
+                        }
                     });
+                    
                     document.getElementById('piSelection').appendChild(playerBtn);
                 });
                 break;

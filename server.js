@@ -361,40 +361,40 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('piAction', ({ roomCode, targets }) => {
+    socket.on('piAction', ({ roomCode, target }) => {  // Now accepts single target
         const room = rooms[roomCode];
         if (!room) return;
     
         // Check if PI has already transformed
         if (room.assignedRoles[socket.id].startsWith('stolen-')) {
-            return io.to(socket.id).emit('error', { message: "You can only investigate once" });
-        }
-    
-        // Get the viewed roles
-        const viewedRoles = targets.map(target => getShownRole(room, target));
-        
-        // Check for non-village roles
-        const nonVillageRole = viewedRoles.find(role => 
-            !['villager-1', 'villager-2', 'villager-3', 'seer', 'apprentice-seer', 
-              'troublemaker', 'gremlin', 'robber', 'witch', 'drunk', 'insomniac', 'sentinel']
-            .includes(role)
-        );
-    
-        if (nonVillageRole) {
-            // PI transforms into this role
-            room.assignedRoles[socket.id] = `stolen-${nonVillageRole}`;
-            
-            return io.to(socket.id).emit('piResult', {
-                transformed: true,
-                newRole: nonVillageRole,
-                viewedRoles: [nonVillageRole] // Only show the first non-village role
+            return io.to(socket.id).emit('piResult', { 
+                error: "You've already transformed and can't investigate further" 
             });
         }
     
-        // If all village roles, show both viewed cards
+        const targetRole = getShownRole(room, target);
+        const isEvilOrNeutral = !['villager-1', 'villager-2', 'villager-3', 'seer', 
+                                'apprentice-seer', 'troublemaker', 'gremlin',
+                                'robber', 'witch', 'drunk', 'insomniac', 'sentinel']
+                               .includes(targetRole);
+    
+        if (isEvilOrNeutral) {
+            // PI transforms into this role
+            room.assignedRoles[socket.id] = `stolen-${targetRole}`;
+            
+            return io.to(socket.id).emit('piResult', {
+                transformed: true,
+                newRole: targetRole,
+                viewedRoles: [targetRole],
+                canInvestigateAgain: false
+            });
+        }
+    
+        // If village role, allow second investigation
         io.to(socket.id).emit('piResult', {
             transformed: false,
-            viewedRoles: viewedRoles.slice(0, 2) // Show up to 2 cards
+            viewedRoles: [targetRole],
+            canInvestigateAgain: true
         });
     });
 
