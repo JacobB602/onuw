@@ -264,12 +264,12 @@ document.addEventListener('DOMContentLoaded', function () {
         switch(cleanRole) {
             
             case 'mystic-wolf':
-            actionContent.innerHTML = `
+                actionContent.innerHTML = `
                     <p>Select a player to view:</p>
                     <div class="player-selection" id="mysticWolfSelection"></div>
                     <div id="mysticWolfResult"></div>
                 `;
-            
+                
                 players.filter(p => p.id !== socket.id).forEach(player => {
                     const playerBtn = document.createElement('div');
                     playerBtn.className = 'player-option';
@@ -574,7 +574,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         <div class="center-option" data-card="center2">Center 2</div>
                         <div class="center-option" data-card="center3">Center 3</div>
                     </div>
-                    <div id="drunkResult"></div>
+                    <div class="drunk-confirmation" style="display:none;">
+                        <p>You've swapped with a center card!</p>
+                        <p>You won't know which card you took.</p>
+                    </div>
                 `;
             
                 document.querySelectorAll('.center-option').forEach(option => {
@@ -587,9 +590,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         document.querySelectorAll('.center-option').forEach(opt => {
                             opt.style.pointerEvents = 'none';
                         });
+                        // Show confirmation message instead of card reveal
+                        document.querySelector('.drunk-confirmation').style.display = 'block';
                     });
                 });
-                break;                
+                break;             
     
             case 'paranormal-investigator':
                 actionContent.innerHTML = `
@@ -937,6 +942,11 @@ document.addEventListener('DOMContentLoaded', function () {
     socket.on('nightTurn', ({ currentRole, currentPlayer, isOriginalRole, actualCurrentRole }) => {
         console.log('Received nightTurn event:', { currentRole, currentPlayer, isOriginalRole, actualCurrentRole });
         
+        // Clear any existing timer interval
+        if (currentTimerInterval) {
+            clearInterval(currentTimerInterval);
+        }
+        
         // Clear any existing elements
         gameScreenElement.innerHTML = `
             <div class="phase-header">
@@ -949,7 +959,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Start the timer
         let timer = 15;
         const timerDisplay = document.getElementById('turnTimerDisplay');
-        const timerInterval = setInterval(() => {
+        currentTimerInterval = setInterval(() => {
             timer--;
             timerDisplay.textContent = timer;
             
@@ -962,7 +972,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             if (timer <= 0) {
-                clearInterval(timerInterval);
+                clearInterval(currentTimerInterval);
+                // Just let the timer expire - server will handle turn advancement
             }
         }, 1000);
     
@@ -974,16 +985,52 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    socket.on('mysticWolfResult', ({ targetRole }) => {
+    socket.on('mysticWolfResult', ({ targetRole, targetName }) => {
         const resultElement = document.getElementById('mysticWolfResult');
-    
         const roleInfo = getRoleInfo(targetRole);
+        
         resultElement.innerHTML = `
             <div class="card-reveal ${roleInfo.color}">
                 <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
-                <div class="card-title">${roleInfo.name}</div>
+                <div class="card-title">${targetName}'s Role</div>
+                <div class="card-desc">${roleInfo.name}</div>
             </div>
         `;
+        
+        // Notify server the action is complete
+        socket.emit('actionComplete', { roomCode: currentRoom });
+    });
+
+    socket.on('minionResult', ({ werewolves, noWerewolves, message }) => {
+        const resultElement = document.getElementById('minionResult');
+        
+        if (noWerewolves) {
+            resultElement.innerHTML = `
+                <div class="minion-result">
+                    <h3>No Werewolves!</h3>
+                    <p>${message}</p>
+                    <div class="minion-instruction">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        You must ensure someone dies to win!
+                    </div>
+                </div>
+            `;
+        } else {
+            resultElement.innerHTML = `
+                <div class="minion-result">
+                    <h3>${message}</h3>
+                    <div class="werewolf-list">
+                        ${werewolves.map(name => `
+                            <div class="werewolf-item">
+                                <i class="fas fa-paw"></i>
+                                <span>${name}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <p class="minion-note">Remember: You must ensure the werewolves survive!</p>
+                </div>
+            `;
+        }
     });
 
     socket.on('seerResult', ({ targetRole }) => {

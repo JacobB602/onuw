@@ -240,14 +240,26 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        // Mystic Wolf only views one player's card
-        const playerRole = getShownRole(room, target); // Assuming you have getShownRole function.
+        // Find the target player
+        const targetPlayer = room.players.find(p => p.id === target);
+        if (!targetPlayer) {
+            io.to(socket.id).emit('error', { message: "Player not found" });
+            return;
+        }
+    
+        // Get the target's role (accounting for any deception)
+        const targetRole = getShownRole(room, target);
+        
+        // Send the result to the Mystic Wolf
         io.to(socket.id).emit('mysticWolfResult', { 
-            targetId: targetPlayer.id, 
-            targetRole: targetPlayer.role,
-            targetName: targetPlayer.name 
+            targetRole: targetRole,
+            targetName: targetPlayer.name || "Unknown"
         });
     
+        // Mark action as complete (but don't advance turn yet)
+        if (room.gameState) {
+            room.gameState.completedActions.push('mystic-wolf');
+        }
     });
 
     socket.on('robberAction', ({ roomCode, target }) => {
@@ -325,14 +337,28 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
+        // Perform the swap without revealing the card to the Drunk
         const drunkRole = room.assignedRoles[socket.id];
         const centerRole = room.assignedRoles[targetCenter];
         
         room.assignedRoles[socket.id] = centerRole;
         room.assignedRoles[targetCenter] = drunkRole;
         
-        io.to(socket.id).emit('drunkResult', { 
-            message: `You swapped with ${targetCenter}` 
+        // Just acknowledge the action was completed without revealing info
+        io.to(socket.id).emit('actionComplete', { 
+            role: 'drunk',
+            message: 'You swapped with a center card (you won\'t know which one)' 
+        });
+    
+        // Mark the Drunk's action as complete in game state
+        if (room.gameState) {
+            room.gameState.completedActions.push('drunk');
+        }
+    
+        // Notify other players if needed (like for game flow)
+        io.to(roomCode).emit('playerActionCompleted', {
+            playerId: socket.id,
+            role: 'drunk'
         });
     });
 
@@ -378,14 +404,29 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const werewolves = room.players.filter(player => 
-            ["werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "dream-wolf"]
-            .includes(room.assignedRoles[player.id])
-        ).map(w => w.name || "Unnamed");
+        // Find all werewolves (including special werewolves)
+        const werewolves = room.players.filter(player => {
+            const role = room.assignedRoles[player.id];
+            return ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent'].includes(role);
+        }).map(w => w.name || "Unnamed");
+    
+        // Check if there are no werewolves
+        const noWerewolves = werewolves.length === 0;
     
         io.to(socket.id).emit('minionResult', { 
             werewolves,
-            noWerewolves: werewolves.length === 0
+            noWerewolves,
+            message: noWerewolves ? 
+                "There are no Werewolves. You must ensure someone dies to win!" :
+                "These are the Werewolves:"
+        });
+    
+        // Notify werewolves that the Minion is viewing them
+        werewolves.forEach(werewolf => {
+            const werewolfPlayer = room.players.find(p => p.name === werewolf);
+            if (werewolfPlayer) {
+                io.to(werewolfPlayer.id).emit('minionViewing');
+            }
         });
     });
 
@@ -512,7 +553,7 @@ io.on('connection', (socket) => {
             if (timer <= 0) {
                 clearInterval(room.currentTimer);
                 room.currentRoleIndex++;
-                nextRoleTurn(roomCode);
+                nextRoleTurn(roomCode); // Advance to next turn
             }
         }, 1000);
     
@@ -639,6 +680,7 @@ io.on('connection', (socket) => {
     function determineWinner(assignedRoles, votedPlayerId, players) {
         const werewolfRoles = ["werewolf-1", "werewolf-2", "serpent", "mystic-wolf", "dream-wolf"];
         const tannerRoles = ["tanner", "apprentice-tanner"];
+        const minionRole = "minion";
         
         const someoneDied = votedPlayerId !== undefined;
         const votedPlayerRole = someoneDied ? assignedRoles[votedPlayerId] : null;
@@ -648,22 +690,35 @@ io.on('connection', (socket) => {
             return "Tanner";
         }
     
-        const werewolvesPresent = werewolfRoles.some(role => 
-            Object.values(assignedRoles).includes(role)
+        // Check if any werewolves exist
+        const werewolves = players.filter(p => 
+            werewolfRoles.includes(assignedRoles[p.id])
         );
-        const werewolfDied = someoneDied && werewolfRoles.includes(votedPlayerRole);
+        
+        // Check if minion exists
+        const minion = players.find(p => assignedRoles[p.id] === minionRole);
     
-        // Villagers win if they killed a werewolf or there are no werewolves
-        if (werewolfDied || (!werewolvesPresent && !someoneDied)) {
+        // Werewolf team wins if:
+        // 1. No werewolves died AND (werewolves exist OR only minion exists)
+        const werewolfTeamWins = 
+            (!someoneDied || !werewolfRoles.includes(votedPlayerRole)) &&
+            (werewolves.length > 0 || (minion && werewolves.length === 0));
+    
+        if (werewolfTeamWins) {
+            return werewolves.length > 0 ? "Werewolves" : "Minion";
+        }
+    
+        // Villagers win if they killed a werewolf when minion exists
+        // or if they killed someone when no werewolves exist
+        const villagersWin = 
+            (someoneDied && werewolfRoles.includes(votedPlayerRole)) ||
+            (someoneDied && werewolves.length === 0 && votedPlayerRole !== minionRole);
+    
+        if (villagersWin) {
             return "Villagers";
         }
     
-        // Werewolves win if at least one survives and villagers didn't kill one
-        if (werewolvesPresent && !werewolfDied) {
-            return "Werewolves";
-        }
-    
-        // Default to villagers winning
+        // Default to villagers winning if nothing else applies
         return "Villagers";
     }
 
