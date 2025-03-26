@@ -361,29 +361,41 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('piAction', ({ roomCode, target }) => {
+    socket.on('piAction', ({ roomCode, targets }) => {
         const room = rooms[roomCode];
         if (!room) return;
     
-        const targetRole = getShownRole(room, target);
-        const isWerewolf = ['werewolf-1', 'werewolf-2', 'serpent', 'mystic-wolf', 'dream-wolf']
-            .includes(targetRole);
+        // Check if PI has already transformed
+        if (room.assignedRoles[socket.id].startsWith('stolen-')) {
+            return io.to(socket.id).emit('error', { message: "You can only investigate once" });
+        }
     
-        if (isWerewolf) {
-            const newWerewolfType = ['werewolf-1', 'werewolf-2'][Math.floor(Math.random() * 2)];
-            room.assignedRoles[socket.id] = newWerewolfType;
+        // Get the viewed roles
+        const viewedRoles = targets.map(target => getShownRole(room, target));
+        
+        // Check for non-village roles
+        const nonVillageRole = viewedRoles.find(role => 
+            !['villager-1', 'villager-2', 'villager-3', 'seer', 'apprentice-seer', 
+              'troublemaker', 'gremlin', 'robber', 'witch', 'drunk', 'insomniac', 'sentinel']
+            .includes(role)
+        );
+    
+        if (nonVillageRole) {
+            // PI transforms into this role
+            room.assignedRoles[socket.id] = `stolen-${nonVillageRole}`;
             
-            io.to(socket.id).emit('piResult', { 
-                isWerewolf: true,
-                newRole: newWerewolfType,
-                targetRole
-            });
-        } else {
-            io.to(socket.id).emit('piResult', { 
-                isWerewolf: false,
-                targetRole
+            return io.to(socket.id).emit('piResult', {
+                transformed: true,
+                newRole: nonVillageRole,
+                viewedRoles: [nonVillageRole] // Only show the first non-village role
             });
         }
+    
+        // If all village roles, show both viewed cards
+        io.to(socket.id).emit('piResult', {
+            transformed: false,
+            viewedRoles: viewedRoles.slice(0, 2) // Show up to 2 cards
+        });
     });
 
     socket.on('gremlinAction', ({ roomCode, targets }) => {
@@ -559,11 +571,6 @@ io.on('connection', (socket) => {
         );
     
         let timer = 15; // Default timer for most roles
-        if (currentRole === "werewolf-team") {
-            timer = 25; // Extra time for werewolf team discussion
-        } else if (currentRole === "seer") {
-            timer = 20; // Extra time for seer decisions
-        }
     
         room.currentTimer = setInterval(() => {
             timer--;

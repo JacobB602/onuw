@@ -606,26 +606,41 @@ document.addEventListener('DOMContentLoaded', function () {
     
             case 'paranormal-investigator':
                 actionContent.innerHTML = `
-                    <p>Select a player to investigate:</p>
+                    <p>Select players to investigate (one at a time):</p>
                     <div class="player-selection" id="piSelection"></div>
+                    <div id="piCurrentSelection"></div>
                     <div id="piResult"></div>
                 `;
-    
-                players.filter(p => p.id !== socket.id).forEach(player => {
+            
+                // Track investigation state
+                let piInvestigations = [];
+                let piTransformed = false;
+            
+                players.forEach(player => {
+                    if (player.id === socket.id) return;
+                    
                     const playerBtn = document.createElement('div');
                     playerBtn.className = 'player-option';
+                    playerBtn.dataset.playerId = player.id;
                     playerBtn.innerHTML = `
                         <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
                         <div>${player.name}</div>
                     `;
-                    playerBtn.addEventListener('click', () => {
-                        socket.emit('piAction', { 
-                            roomCode: currentRoom, 
-                            target: player.id 
+                    playerBtn.addEventListener('click', async function() {
+                        if (piTransformed) return;
+                        
+                        this.classList.add('selected');
+                        this.style.pointerEvents = 'none';
+                        
+                        // Investigate this player
+                        socket.emit('piInvestigateOne', {
+                            roomCode: currentRoom,
+                            target: player.id
                         });
-                        document.querySelectorAll('.player-option').forEach(btn => {
-                            btn.style.pointerEvents = 'none';
-                            btn.style.opacity = '0.6';
+                        
+                        // Wait for server response
+                        await new Promise(resolve => {
+                            socket.once('piInvestigateOneResult', resolve);
                         });
                     });
                     document.getElementById('piSelection').appendChild(playerBtn);
@@ -1140,6 +1155,38 @@ document.addEventListener('DOMContentLoaded', function () {
                 <i class="fas fa-check-circle"></i> ${message}
             </div>
         `;
+    });
+
+    socket.on('piResult', ({ transformed, newRole, viewedRoles }) => {
+        const resultElement = document.getElementById('piResult');
+        
+        if (transformed) {
+            const roleInfo = getRoleInfo(newRole);
+            resultElement.innerHTML = `
+                <div class="card-reveal ${roleInfo.color}">
+                    <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                    <div class="card-title">You transformed into a ${roleInfo.name}!</div>
+                    <div class="card-desc">${roleInfo.team.toUpperCase()} TEAM</div>
+                </div>
+                <p class="pi-note">You won't wake up again as this role.</p>
+            `;
+        } else {
+            resultElement.innerHTML = `
+                <h4>Investigated Roles:</h4>
+                <div class="pi-results">
+                    ${viewedRoles.map(role => {
+                        const roleInfo = getRoleInfo(role);
+                        return `
+                            <div class="card-reveal ${roleInfo.color}">
+                                <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                                <div class="card-title">${roleInfo.name}</div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <p class="pi-note">All investigated roles were Village roles.</p>
+            `;
+        }
     });
 
     socket.on('squireResult', ({ werewolves, noWerewolves, message }) => {
