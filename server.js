@@ -26,6 +26,8 @@ const rooms = {};
 function getGameRoleTurnOrder(selectedRoles) {   
     const turnOrder = [
         // Individual werewolf roles
+        "werewolf-1",
+        "werewolf-2",
         "mystic-wolf",
         "dream-wolf",
         "serpent",
@@ -210,6 +212,32 @@ io.on('connection', (socket) => {
     });
 
     // Role action handlers
+
+    socket.on('werewolfActionComplete', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+        
+        // Mark action as complete
+        if (room.gameState) {
+            room.gameState.completedActions.push('werewolf');
+        }
+        
+        // Check if all werewolves have completed their action
+        const werewolfPlayers = room.players.filter(p => 
+            ['werewolf-1', 'werewolf-2'].includes(room.startingRoles[p.id])
+        );
+        
+        const allWerewolvesDone = werewolfPlayers.every(p => 
+            room.gameState.completedActions.includes(room.startingRoles[p.id])
+        );
+        
+        if (allWerewolvesDone) {
+            // Move to next role
+            room.currentRoleIndex++;
+            nextRoleTurn(roomCode);
+        }
+    });
+
     socket.on('seerAction', ({ roomCode, target }) => {
         const room = rooms[roomCode];
         if (!room) return;
@@ -293,15 +321,22 @@ io.on('connection', (socket) => {
     socket.on('insomniacAction', ({ roomCode }) => {
         const room = rooms[roomCode];
         if (!room) return;
-    
-        const currentRole = room.assignedRoles[socket.id];
-        const originalRole = room.startingRoles[socket.id];
-        const roleChanged = currentRole !== originalRole;
-    
-        io.to(socket.id).emit('insomniacResult', { 
-            role: currentRole,
-            originalRole: originalRole,
-            changed: roleChanged
+        
+        // Just acknowledge the action is complete
+        socket.emit('actionComplete', { 
+            role: 'insomniac',
+            message: 'You checked your current role' 
+        });
+        
+        // Mark the Insomniac's action as complete in game state
+        if (room.gameState) {
+            room.gameState.completedActions.push('insomniac');
+        }
+        
+        // Notify other players if needed
+        io.to(roomCode).emit('playerActionCompleted', {
+            playerId: socket.id,
+            role: 'insomniac'
         });
     });
 

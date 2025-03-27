@@ -262,7 +262,65 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     
         switch(cleanRole) {
-            
+            case 'werewolf-1':
+            case 'werewolf-2':
+                // Check if this is the only werewolf
+                const otherWerewolves = players.filter(p => 
+                    p.id !== socket.id && 
+                    ['werewolf-1', 'werewolf-2', 'mystic-wolf', 'dream-wolf', 'serpent']
+                    .includes(clientAssignedRoles[p.id])
+                ).map(w => w.name || "Unnamed");
+
+                if (otherWerewolves.length === 0) {
+                    // Lone werewolf gets to see a center card
+                    actionContent.innerHTML = `
+                        <p>You are the only werewolf!</p>
+                        <p>Select a center card to view:</p>
+                        <div class="center-selection">
+                            <div class="center-option" data-card="center1">Center 1</div>
+                            <div class="center-option" data-card="center2">Center 2</div>
+                            <div class="center-option" data-card="center3">Center 3</div>
+                        </div>
+                        <div id="werewolfResult"></div>
+                    `;
+
+                    document.querySelectorAll('.center-option').forEach(option => {
+                        option.addEventListener('click', function() {
+                            socket.emit('viewCenterCard', {
+                                roomCode: currentRoom,
+                                card: this.dataset.card
+                            });
+                            this.classList.add('selected');
+                            document.querySelectorAll('.center-option').forEach(opt => {
+                                opt.style.pointerEvents = 'none';
+                            });
+                        });
+                    });
+                } else {
+                    // Show other werewolves
+                    actionContent.innerHTML = `
+                        <div class="werewolf-team">
+                            <h3><i class="fas fa-paw"></i> Werewolf Team</h3>
+                            <p>These are your fellow werewolves:</p>
+                            <div class="werewolf-list">
+                                ${otherWerewolves.map(name => `
+                                    <div class="werewolf-member evil">
+                                        <div class="werewolf-avatar">${name.charAt(0)}</div>
+                                        <div class="werewolf-info">
+                                            <div class="werewolf-name">${name}</div>
+                                            <div class="werewolf-role">Werewolf</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p class="werewolf-instruction">
+                                <i class="fas fa-info-circle"></i> 
+                                Work together to avoid being discovered!
+                            </p>
+                        </div>
+                    `;
+                }
+                break;
             case 'mystic-wolf':
                 actionContent.innerHTML = `
                     <p>Select a player to view:</p>
@@ -486,9 +544,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 break;
     
             case 'insomniac':
-                // Get the player's current role
-                const currentRole = clientAssignedRoles[socket.id];
-                const roleInfo = getRoleInfo(actualCurrentRole.replace('stolen-', ''));
+                // Get the player's current role from the parameters passed to the function
+                const currentRole = role; // This is already the cleaned role (without 'stolen-')
+                const roleInfo = getRoleInfo(currentRole);
                 
                 actionContent.innerHTML = `
                     <div class="insomniac-result">
