@@ -75,6 +75,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function toggleModal(modal, show) {
         modal.classList.toggle('active', show);
+        
+        // Add or remove the click-outside handler
+        if (show) {
+            // Add click outside handler after a small delay to prevent immediate close
+            setTimeout(() => {
+                document.addEventListener('click', clickOutsideHandler);
+            }, 10);
+        } else {
+            document.removeEventListener('click', clickOutsideHandler);
+        }
+    }
+
+    function clickOutsideHandler(event) {
+        const modal = document.querySelector('.modal-overlay.active');
+        const isClickInside = modal.querySelector('.modal').contains(event.target);
+        const isClickOnModal = event.target.closest('.modal-overlay.active') === modal;
+        
+        // Close if clicking outside the modal content but on the overlay
+        if (modal && !isClickInside && isClickOnModal) {
+            toggleModal(modal, false);
+        }
     }
 
     function getRoleInfo(role) {
@@ -128,7 +149,10 @@ document.addEventListener('DOMContentLoaded', function () {
     usernameInput.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') handleNameSubmit();
     });
-    closePopupButton.addEventListener('click', () => toggleModal(settingsPopup, false));
+    closePopupButton.addEventListener('click', () => {
+        toggleModal(settingsPopup, false);
+        document.removeEventListener('click', clickOutsideHandler);
+    });
     startGameButton.addEventListener('click', startGame);
 
     document.getElementById('roles').addEventListener('click', () => {
@@ -1365,20 +1389,45 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    socket.on('startDayPhase', () => {
-        console.log('Day phase starting');
-
+    socket.on('startDayPhase', (roleOrder) => {
+        console.log('Received role order:', roleOrder); // Debug log
+        
         const miniCard = document.getElementById('miniRoleCard');
         if (miniCard) {
             miniCard.style.display = 'none';
         }
-
+    
+        // Create basic role info if not found
+        const safeGetRoleInfo = (role) => {
+            const info = getRoleInfo(role);
+            return info || {
+                name: role.replace(/-/g, ' '),
+                icon: 'fas fa-question',
+                color: 'neutral'
+            };
+        };
+    
         gameScreenElement.innerHTML = `
             <div class="phase-header">
                 <h2>Day Phase</h2>
                 <div class="phase-timer" id="dayTimerDisplay">05:00</div>
             </div>
             <div class="result-display">
+                <div class="role-order-display">
+                    <h3><i class="fas fa-moon"></i> Night Role Order</h3>
+                    <div class="role-order-list">
+                        ${roleOrder.map(role => {
+                            const roleInfo = safeGetRoleInfo(role);
+                            return `
+                            <div class="role-order-item">
+                                <div class="role-order-icon">
+                                    <i class="${roleInfo.icon}"></i>
+                                </div>
+                                <div class="role-order-name">${roleInfo.name}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
                 <p>Discuss with other players and determine who the werewolves are!</p>
                 <button class="btn-secondary" id="skipToVoteButton">
                     <i class="fas fa-fast-forward"></i> Skip to Vote
@@ -1386,11 +1435,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div id="skipVoteStatus" style="margin-top: 10px;"></div>
             </div>
         `;
-
-        // Add event listener for skip button
-        document.getElementById('skipToVoteButton').addEventListener('click', () => {
-            socket.emit('requestSkipToVote', { roomCode: currentRoom });
-        });
+    
+        // Add skip button event listener with null check
+        const skipButton = document.getElementById('skipToVoteButton');
+        if (skipButton) {
+            skipButton.addEventListener('click', () => {
+                socket.emit('requestSkipToVote', { roomCode: currentRoom });
+            });
+        }
     });
 
     socket.on('skipVoteUpdate', ({ playersVoted, totalPlayers }) => {

@@ -1149,6 +1149,99 @@
                 font-size: 1.1rem;
             }
         }
+
+        /* Custom scrollbar for modal */
+        .modal::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .modal::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0 12px 12px 0;
+        }
+
+        .modal::-webkit-scrollbar-thumb {
+            background: var(--accent-blue);
+            border-radius: 5px;
+        }
+
+        .modal::-webkit-scrollbar-thumb:hover {
+            background: #3a6a8a;
+        }
+
+        /* Role Order Display */
+        .role-order-display {
+            background-color: var(--bg-darker);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .role-order-display h3 {
+            color: var(--accent-gold);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-family: 'MedievalSharp', cursive;
+        }
+
+        .role-order-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .role-order-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            transition: var(--transition);
+        }
+
+        .role-order-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .role-order-name {
+            font-weight: 600;
+        }
+
+        /* Animation for role order items */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .role-order-item {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+
+        .role-order-item:nth-child(1) { animation-delay: 0.1s; }
+        .role-order-item:nth-child(2) { animation-delay: 0.2s; }
+        .role-order-item:nth-child(3) { animation-delay: 0.3s; }
+        .role-order-item:nth-child(4) { animation-delay: 0.4s; }
+        .role-order-item:nth-child(5) { animation-delay: 0.5s; }
+        .role-order-item:nth-child(6) { animation-delay: 0.6s; }
+        /* Add more if needed */
     </style>
 </head>
 <body>
@@ -1247,10 +1340,6 @@
                                 <i class="fas fa-shield-alt"></i> Good Roles
                             </h3>
                             <div class="role-grid">
-                                <div class="role-card" data-role="sentinel">
-                                    <div class="role-icon"><i class="fas fa-lock"></i></div>
-                                    <div class="role-name">Sentinel</div>
-                                </div>
                                 <div class="role-card" data-role="villager-1">
                                     <div class="role-icon"><i class="fas fa-user"></i></div>
                                     <div class="role-name">Villager</div>
@@ -1262,6 +1351,10 @@
                                 <div class="role-card" data-role="villager-3">
                                     <div class="role-icon"><i class="fas fa-user"></i></div>
                                     <div class="role-name">Villager</div>
+                                </div>
+                                <div class="role-card" data-role="sentinel">
+                                    <div class="role-icon"><i class="fas fa-lock"></i></div>
+                                    <div class="role-name">Sentinel</div>
                                 </div>
                                 <div class="role-card" data-role="seer">
                                     <div class="role-icon"><i class="fas fa-eye"></i></div>
