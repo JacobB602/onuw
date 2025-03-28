@@ -73,7 +73,8 @@ io.on('connection', (socket) => {
                 originalRoles: {},
                 votes: {},
                 nightPhaseActive: false,
-                currentRoleIndex: 0
+                currentRoleIndex: 0,
+                skipVotes: {}
             };
         }
     
@@ -646,10 +647,25 @@ io.on('connection', (socket) => {
         const duration = Math.min(room.players.length * 60, 300); // Max 5 minutes
         io.to(roomCode).emit('startDayPhase');
         
+        // Calculate initial time immediately
+        let minutes = Math.floor(duration / 60);
+        let seconds = duration % 60;
+        io.to(roomCode).emit('dayTimer', { 
+            timer: duration,
+            display: `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+        });
+        
         let timer = duration;
         room.dayTimer = setInterval(() => {
             timer--;
-            io.to(roomCode).emit('dayTimer', { timer });
+            
+            minutes = Math.floor(timer / 60);
+            seconds = timer % 60;
+            
+            io.to(roomCode).emit('dayTimer', { 
+                timer,
+                display: `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`
+            });
             
             if (timer <= 0) {
                 clearInterval(room.dayTimer);
@@ -788,6 +804,27 @@ io.on('connection', (socket) => {
         // Default to villagers winning if nothing else applies
         return "Villagers";
     }
+
+    socket.on('requestSkipToVote', ({ roomCode }) => {
+        const room = rooms[roomCode];
+        if (!room) return;
+    
+        room.skipVotes[socket.id] = true;
+        
+        const playersVoted = Object.keys(room.skipVotes).length;
+        const totalPlayers = room.players.length;
+        
+        io.to(roomCode).emit('skipVoteUpdate', { playersVoted, totalPlayers });
+        
+        if (playersVoted === totalPlayers) {
+            // All players agreed to skip
+            io.to(roomCode).emit('skipVoteApproved');
+            
+            // Clear the day timer and move to voting
+            if (room.dayTimer) clearInterval(room.dayTimer);
+            endDayPhase(roomCode);
+        }
+    });
 
     socket.on('playAgain', (roomCode) => {
         const room = rooms[roomCode];

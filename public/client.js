@@ -1035,14 +1035,14 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     });
 
-    socket.on('dayTimer', ({ timer }) => {
-        const minutes = Math.floor(timer / 60);
-        const seconds = timer % 60;
+    socket.on('dayTimer', ({ display }) => {
         const timerDisplay = document.getElementById('dayTimerDisplay');
         if (timerDisplay) {
-            timerDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            timerDisplay.textContent = display;
             
-            if (timer <= 30) {
+            // Extract minutes from display (format is "MM:SS")
+            const minutes = parseInt(display.split(':')[0]);
+            if (minutes < 1) {
                 timerDisplay.classList.add('pulse');
                 timerDisplay.style.color = 'var(--accent-red)';
             } else {
@@ -1380,8 +1380,32 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
             <div class="result-display">
                 <p>Discuss with other players and determine who the werewolves are!</p>
+                <button class="btn-secondary" id="skipToVoteButton">
+                    <i class="fas fa-fast-forward"></i> Skip to Vote
+                </button>
+                <div id="skipVoteStatus" style="margin-top: 10px;"></div>
             </div>
         `;
+
+        // Add event listener for skip button
+        document.getElementById('skipToVoteButton').addEventListener('click', () => {
+            socket.emit('requestSkipToVote', { roomCode: currentRoom });
+        });
+    });
+
+    socket.on('skipVoteUpdate', ({ playersVoted, totalPlayers }) => {
+        const statusElement = document.getElementById('skipVoteStatus');
+        if (statusElement) {
+            statusElement.innerHTML = `${playersVoted}/${totalPlayers} players want to skip to vote`;
+        }
+    });
+    
+    socket.on('skipVoteApproved', () => {
+        // Server will handle the phase transition
+        const statusElement = document.getElementById('skipVoteStatus');
+        if (statusElement) {
+            statusElement.innerHTML = 'Skipping to vote phase...';
+        }
     });
 
     socket.on('endDayPhase', () => {
