@@ -942,6 +942,12 @@ document.addEventListener('DOMContentLoaded', function () {
     socket.on('prepareForNightPhase', () => {
         gameScreenElement.innerHTML = '';
         console.log('Preparing for night phase...');
+
+        if (clientOriginalRole && !document.getElementById('miniRoleCard')) {
+            createMiniRoleCard(clientOriginalRole);
+        } else if (document.getElementById('miniRoleCard')) {
+            document.getElementById('miniRoleCard').style.display = 'block';
+        }
     });
     
     socket.on('roleConfirmed', ({ confirmedPlayers, players }) => {
@@ -959,6 +965,40 @@ document.addEventListener('DOMContentLoaded', function () {
             <p>${confirmedCount}/${totalPlayers} players confirmed</p>
         `;
     });
+
+    function createMiniRoleCard(role) {
+        const roleInfo = getRoleInfo(role);
+        
+        // Remove existing mini card if it exists
+        const existingMiniCard = document.getElementById('miniRoleCard');
+        if (existingMiniCard) {
+            existingMiniCard.remove();
+        }
+        
+        const miniCard = document.createElement('div');
+        miniCard.id = 'miniRoleCard';
+        miniCard.className = 'mini-role-card';
+        miniCard.innerHTML = `
+            <div class="card" id="miniCardInner">
+                <div class="card-face card-front">
+                    <div class="card-icon"><i class="fas fa-question"></i></div>
+                    <div class="card-title">Original Role</div>
+                </div>
+                <div class="card-face card-back ${roleInfo.color}">
+                    <div class="card-icon"><i class="${roleInfo.icon}"></i></div>
+                    <div class="card-title">${roleInfo.name}</div>
+                    <div class="card-desc">${roleInfo.team.toUpperCase()} TEAM</div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(miniCard);
+        
+        // Make it flip on click
+        document.getElementById('miniCardInner').addEventListener('click', function() {
+            this.classList.toggle('flipped');
+        });
+    }
 
     socket.on('turnTimer', ({ timer }) => {
         const timerDisplay = document.getElementById('turnTimerDisplay');
@@ -1036,14 +1076,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         clientAssignedRoles = assignedRoles;
+        clientOriginalRole = assignedRoles[socket.id];
         hideElement(lobbyElement);
         showElement(gameScreenElement);
         showRoleCard(assignedRoles[socket.id]);
+        createMiniRoleCard(clientOriginalRole);
     });
 
     socket.on('nightTurn', ({ currentRole, currentPlayer, isOriginalRole, actualCurrentRole }) => {
         console.log('Received nightTurn event:', { currentRole, currentPlayer, isOriginalRole, actualCurrentRole });
         
+        if (document.getElementById('miniRoleCard')) {
+            document.getElementById('miniRoleCard').style.display = 'block';
+        }
+
         // Clear any existing timer interval
         if (currentTimerInterval) {
             clearInterval(currentTimerInterval);
@@ -1321,6 +1367,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     socket.on('startDayPhase', () => {
         console.log('Day phase starting');
+
+        const miniCard = document.getElementById('miniRoleCard');
+        if (miniCard) {
+            miniCard.style.display = 'none';
+        }
+
         gameScreenElement.innerHTML = `
             <div class="phase-header">
                 <h2>Day Phase</h2>
@@ -1450,6 +1502,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     socket.on('resetGame', () => {
+
+        const miniCard = document.getElementById('miniRoleCard');
+        if (miniCard) {
+            miniCard.remove();
+        }
+
         hideElement(gameScreenElement);
         showElement(lobbyElement);
         playerListElement.innerHTML = '';
