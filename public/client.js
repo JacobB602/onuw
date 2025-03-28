@@ -1419,9 +1419,34 @@ document.addEventListener('DOMContentLoaded', function () {
             </button>
         `;
 
-        document.getElementById('playAgainButton').addEventListener('click', () => {
+        document.getElementById('playAgainButton').addEventListener('click', function() {
+            // Disable the button and show feedback
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Waiting for others...';
+            
             socket.emit('playAgain', currentRoom);
+            
+            // Add a waiting message if it doesn't exist
+            if (!document.querySelector('.play-again-waiting')) {
+                const waitingDiv = document.createElement('div');
+                waitingDiv.className = 'play-again-waiting';
+                waitingDiv.innerHTML = '<p>Waiting for other players to ready up...</p>';
+                this.parentNode.insertBefore(waitingDiv, this.nextSibling);
+            }
         });
+    });
+
+    socket.on('playAgainUpdate', ({ playersReady, totalPlayers, playersLeft }) => {
+        const button = document.getElementById('playAgainButton');
+        const waitingDiv = document.querySelector('.play-again-waiting');
+        
+        if (button) {
+            button.innerHTML = `<i class="fas fa-check"></i> Ready (${playersReady}/${totalPlayers})`;
+        }
+        
+        if (waitingDiv) {
+            waitingDiv.innerHTML = `<p>Waiting for ${playersLeft} more player${playersLeft === 1 ? '' : 's'}...</p>`;
+        }
     });
 
     socket.on('resetGame', () => {

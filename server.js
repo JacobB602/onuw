@@ -799,6 +799,18 @@ io.on('connection', (socket) => {
         
         room.playAgainPlayers[socket.id] = true;
         
+        // Calculate how many players are left to confirm
+        const playersReady = Object.keys(room.playAgainPlayers).length;
+        const totalPlayers = room.players.length;
+        const playersLeft = totalPlayers - playersReady;
+        
+        // Send update to all players
+        io.to(roomCode).emit('playAgainUpdate', {
+            playersReady,
+            totalPlayers,
+            playersLeft
+        });
+        
         const allPlayAgain = room.players.every(player =>
             room.playAgainPlayers[player.id]
         );
