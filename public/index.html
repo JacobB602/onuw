@@ -1078,6 +1078,77 @@
             margin: 0.5rem 0;
             font-weight: bold;
         }
+
+        /* Role Selection Sections */
+        .role-selection-container {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .role-section {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Evil Section */
+        .evil-section {
+            border: 1px solid rgba(230, 57, 70, 0.3);
+        }
+
+        .evil-title {
+            color: var(--accent-red);
+            border-bottom-color: var(--accent-red);
+        }
+
+        /* Good Section */
+        .good-section {
+            border: 1px solid rgba(69, 123, 157, 0.3);
+        }
+
+        .good-title {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        /* Neutral Section */
+        .neutral-section {
+            border: 1px solid rgba(255, 209, 102, 0.3);
+        }
+
+        .neutral-title {
+            color: var(--accent-gold);
+            border-bottom-color: var(--accent-gold);
+        }
+
+        /* Adjust the role grid for sections */
+        .role-section .role-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .role-section .role-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1131,97 +1202,121 @@
                 </div>
                 <div class="role-selection">
                     <h3 id="rolesRequiredText">Select roles (0 required)</h3>
-                    <div class="role-grid">
-                        <!-- Werewolf Roles -->
-                        <div class="role-card" data-role="werewolf-1">
-                            <div class="role-icon"><i class="fas fa-paw"></i></div>
-                            <div class="role-name">Werewolf</div>
+                    <div class="role-selection-container">
+                        <!-- Evil Roles Section -->
+                        <div class="role-section evil-section">
+                            <h3 class="section-title evil-title">
+                                <i class="fas fa-skull"></i> Evil Roles
+                            </h3>
+                            <div class="role-grid">
+                                <!-- Werewolf Roles -->
+                                <div class="role-card" data-role="werewolf-1">
+                                    <div class="role-icon"><i class="fas fa-paw"></i></div>
+                                    <div class="role-name">Werewolf</div>
+                                </div>
+                                <div class="role-card" data-role="werewolf-2">
+                                    <div class="role-icon"><i class="fas fa-paw"></i></div>
+                                    <div class="role-name">Werewolf</div>
+                                </div>
+                                <div class="role-card" data-role="serpent">
+                                    <div class="role-icon"><i class="fas fa-staff-snake"></i></div>
+                                    <div class="role-name">Serpent</div>
+                                </div>
+                                <div class="role-card" data-role="mystic-wolf">
+                                    <div class="role-icon"><i class="fas fa-hat-wizard"></i></div>
+                                    <div class="role-name">Mystic Wolf</div>
+                                </div>
+                                <div class="role-card" data-role="dream-wolf">
+                                    <div class="role-icon"><i class="fas fa-moon"></i></div>
+                                    <div class="role-name">Dream Wolf</div>
+                                </div>
+                                <div class="role-card" data-role="minion">
+                                    <div class="role-icon"><i class="fas fa-skull"></i></div>
+                                    <div class="role-name">Minion</div>
+                                </div>
+                                <div class="role-card" data-role="squire">
+                                    <div class="role-icon"><i class="fas fa-shield-alt"></i></div>
+                                    <div class="role-name">Squire</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="role-card" data-role="werewolf-2">
-                            <div class="role-icon"><i class="fas fa-paw"></i></div>
-                            <div class="role-name">Werewolf</div>
+
+                        <!-- Good Roles Section -->
+                        <div class="role-section good-section">
+                            <h3 class="section-title good-title">
+                                <i class="fas fa-shield-alt"></i> Good Roles
+                            </h3>
+                            <div class="role-grid">
+                                <div class="role-card" data-role="sentinel">
+                                    <div class="role-icon"><i class="fas fa-lock"></i></div>
+                                    <div class="role-name">Sentinel</div>
+                                </div>
+                                <div class="role-card" data-role="villager-1">
+                                    <div class="role-icon"><i class="fas fa-user"></i></div>
+                                    <div class="role-name">Villager</div>
+                                </div>
+                                <div class="role-card" data-role="villager-2">
+                                    <div class="role-icon"><i class="fas fa-user"></i></div>
+                                    <div class="role-name">Villager</div>
+                                </div>
+                                <div class="role-card" data-role="villager-3">
+                                    <div class="role-icon"><i class="fas fa-user"></i></div>
+                                    <div class="role-name">Villager</div>
+                                </div>
+                                <div class="role-card" data-role="seer">
+                                    <div class="role-icon"><i class="fas fa-eye"></i></div>
+                                    <div class="role-name">Seer</div>
+                                </div>
+                                <div class="role-card" data-role="apprentice-seer">
+                                    <div class="role-icon"><i class="fas fa-eye"></i></div>
+                                    <div class="role-name">Apprentice Seer</div>
+                                </div>
+                                <div class="role-card" data-role="troublemaker">
+                                    <div class="role-icon"><i class="fas fa-random"></i></div>
+                                    <div class="role-name">Troublemaker</div>
+                                </div>
+                                <div class="role-card" data-role="gremlin">
+                                    <div class="role-icon"><i class="fas fa-bolt"></i></div>
+                                    <div class="role-name">Gremlin</div>
+                                </div>
+                                <div class="role-card" data-role="paranormal-investigator">
+                                    <div class="role-icon"><i class="fas fa-search"></i></div>
+                                    <div class="role-name">Investigator</div>
+                                </div>
+                                <div class="role-card" data-role="robber">
+                                    <div class="role-icon"><i class="fas fa-mask"></i></div>
+                                    <div class="role-name">Robber</div>
+                                </div>
+                                <div class="role-card" data-role="witch">
+                                    <div class="role-icon"><i class="fas fa-hat-wizard"></i></div>
+                                    <div class="role-name">Witch</div>
+                                </div>
+                                <div class="role-card" data-role="drunk">
+                                    <div class="role-icon"><i class="fas fa-beer"></i></div>
+                                    <div class="role-name">Drunk</div>
+                                </div>
+                                <div class="role-card" data-role="insomniac">
+                                    <div class="role-icon"><i class="fas fa-moon"></i></div>
+                                    <div class="role-name">Insomniac</div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="role-card" data-role="serpent">
-                            <div class="role-icon"><i class="fas fa-staff-snake"></i></div>
-                            <div class="role-name">Serpent</div>
-                        </div>
-                        <div class="role-card" data-role="mystic-wolf">
-                            <div class="role-icon"><i class="fas fa-hat-wizard"></i></div>
-                            <div class="role-name">Mystic Wolf</div>
-                        </div>
-                        <div class="role-card" data-role="dream-wolf">
-                            <div class="role-icon"><i class="fas fa-moon"></i></div>
-                            <div class="role-name">Dream Wolf</div>
-                        </div>
-                        <div class="role-card" data-role="minion">
-                            <div class="role-icon"><i class="fas fa-skull"></i></div>
-                            <div class="role-name">Minion</div>
-                        </div>
-                        <div class="role-card" data-role="squire">
-                            <div class="role-icon"><i class="fas fa-shield-alt"></i></div>
-                            <div class="role-name">Squire</div>
-                        </div>
-                        <div class="role-card" data-role="tanner">
-                            <div class="role-icon"><i class="fas fa-tshirt"></i></div>
-                            <div class="role-name">Tanner</div>
-                        </div>
-                        <div class="role-card" data-role="apprentice-tanner">
-                            <div class="role-icon"><i class="fas fa-tshirt"></i></div>
-                            <div class="role-name">Apprentice Tanner</div>
-                        </div>
-                        <div class="role-card" data-role="sentinel">
-                            <div class="role-icon"><i class="fas fa-lock"></i></div>
-                            <div class="role-name">Sentinel</div>
-                        </div>
-                        <!-- Villager Roles -->
-                        <div class="role-card" data-role="villager-1">
-                            <div class="role-icon"><i class="fas fa-user"></i></div>
-                            <div class="role-name">Villager</div>
-                        </div>
-                        <div class="role-card" data-role="villager-2">
-                            <div class="role-icon"><i class="fas fa-user"></i></div>
-                            <div class="role-name">Villager</div>
-                        </div>
-                        <div class="role-card" data-role="villager-3">
-                            <div class="role-icon"><i class="fas fa-user"></i></div>
-                            <div class="role-name">Villager</div>
-                        </div>
-                        <!-- Special Roles -->
-                        <div class="role-card" data-role="seer">
-                            <div class="role-icon"><i class="fas fa-eye"></i></div>
-                            <div class="role-name">Seer</div>
-                        </div>
-                        <div class="role-card" data-role="apprentice-seer">
-                            <div class="role-icon"><i class="fas fa-eye"></i></div>
-                            <div class="role-name">Apprentice Seer</div>
-                        </div>
-                        <div class="role-card" data-role="troublemaker">
-                            <div class="role-icon"><i class="fas fa-random"></i></div>
-                            <div class="role-name">Troublemaker</div>
-                        </div>
-                        <div class="role-card" data-role="gremlin">
-                            <div class="role-icon"><i class="fas fa-bolt"></i></div>
-                            <div class="role-name">Gremlin</div>
-                        </div>
-                        <div class="role-card" data-role="paranormal-investigator">
-                            <div class="role-icon"><i class="fas fa-search"></i></div>
-                            <div class="role-name">Investigator</div>
-                        </div>
-                        <div class="role-card" data-role="robber">
-                            <div class="role-icon"><i class="fas fa-mask"></i></div>
-                            <div class="role-name">Robber</div>
-                        </div>
-                        <div class="role-card" data-role="witch">
-                            <div class="role-icon"><i class="fas fa-hat-wizard"></i></div>
-                            <div class="role-name">Witch</div>
-                        </div>
-                        <div class="role-card" data-role="drunk">
-                            <div class="role-icon"><i class="fas fa-beer"></i></div>
-                            <div class="role-name">Drunk</div>
-                        </div>
-                        <div class="role-card" data-role="insomniac">
-                            <div class="role-icon"><i class="fas fa-moon"></i></div>
-                            <div class="role-name">Insomniac</div>
+
+                        <!-- Neutral Roles Section -->
+                        <div class="role-section neutral-section">
+                            <h3 class="section-title neutral-title">
+                                <i class="fas fa-balance-scale"></i> Neutral Roles
+                            </h3>
+                            <div class="role-grid">
+                                <div class="role-card" data-role="tanner">
+                                    <div class="role-icon"><i class="fas fa-tshirt"></i></div>
+                                    <div class="role-name">Tanner</div>
+                                </div>
+                                <div class="role-card" data-role="apprentice-tanner">
+                                    <div class="role-icon"><i class="fas fa-tshirt"></i></div>
+                                    <div class="role-name">Apprentice Tanner</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
