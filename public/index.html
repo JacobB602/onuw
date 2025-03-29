@@ -602,6 +602,15 @@
         }
 
         /* Voting Phase */
+        .voted-out {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+        }
+
         .voting-phase {
             display: flex;
             flex-direction: column;
@@ -765,6 +774,75 @@
 
         .reveal-card p {
             margin-bottom: 0.25rem;
+        }
+
+        /* Add these styles to your existing CSS */
+        .reveal-card.werewolf {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .reveal-card.villager {
+            border-left: 4px solid var(--accent-blue);
+            background-color: rgba(69, 123, 157, 0.1);
+        }
+
+        .reveal-card.tanner {
+            border-left: 4px solid var(--accent-gold);
+            background-color: rgba(255, 209, 102, 0.1);
+        }
+
+        .reveal-card.minion {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .reveal-card.squire {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .victory-banner {
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            animation: pulse 2s infinite;
+            box-shadow: var(--shadow-md);
+        }
+
+        .victory-banner.werewolves {
+            background-color: rgba(230, 57, 70, 0.3);
+            color: white;
+        }
+
+        .victory-banner.villagers {
+            background-color: rgba(69, 123, 157, 0.3);
+            color: white;
+        }
+
+        .victory-banner.tanner {
+            background-color: rgba(255, 209, 102, 0.3);
+            color: #dfc07e;
+        }
+
+        .player-result {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .player-result.win {
+            background-color: rgba(46, 125, 50, 0.2);
+            border: 2px solid #2e7d32;
+        }
+
+        .player-result.lose {
+            background-color: rgba(244, 67, 54, 0.2);
+            border: 2px solid #f44336;
         }
 
         .original-role {

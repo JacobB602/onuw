@@ -770,7 +770,7 @@ io.on('connection', (socket) => {
     
         // Tanner wins if they were voted out
         if (someoneDied && votedPlayerRole === "tanner") {
-            return "Tanner and Apprentice Tanner"; // Both win!
+            return "Tanner Team"; // Both win!
         }
     
         // Apprentice Tanner wins if they're killed when no Tanner exists

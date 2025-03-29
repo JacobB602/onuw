@@ -1489,12 +1489,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     socket.on('votingResult', ({ votedPlayerId, votes, winningTeam, roleReveal, centerCards }) => {
         const votedPlayer = roleReveal.find(p => p.id === votedPlayerId);
+        const currentPlayerRole = clientAssignedRoles[socket.id];
+        const roleInfo = getRoleInfo(currentPlayerRole);
+        const isWinner = determineIfPlayerWon(winningTeam, currentPlayerRole, votedPlayerId === socket.id);
         
         gameScreenElement.innerHTML = `
-            <div class="game-result ${winningTeam.toLowerCase()}">
+            <div class="victory-banner ${winningTeam.toLowerCase()}">
                 <h2>${winningTeam} Win${winningTeam === 'Villagers' ? '' : 's'}!</h2>
-                ${votedPlayer ? `<p>The village voted out: ${votedPlayer.name}</p>` : '<p>No one was voted out!</p>'}
             </div>
+            
+            <div class="player-result ${isWinner ? 'win' : 'lose'}">
+                <h3>You ${isWinner ? 'Won!' : 'Lost'}</h3>
+                <p>As the ${roleInfo.name} (${roleInfo.team.toUpperCase()} Team)</p>
+            </div>
+            
+            ${votedPlayer ? `<p class="voted-out">The village voted out: ${votedPlayer.name}</p>` : ''}
             
             <div class="role-reveal">
                 <h2>Final Roles</h2>
@@ -1504,8 +1513,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     const changed = player.role !== player.originalRole;
                     
                     return `
-                        <div class="reveal-card ${roleInfo.color}">
-                            <div class="role-icon"><i class="${roleInfo.icon}"></i></div>
+                        <div class="reveal-card ${roleInfo.team}">
+                            <div class="role-icon ${roleInfo.color}">
+                                <i class="${roleInfo.icon}"></i>
+                            </div>
                             <h3>${player.name}</h3>
                             <p>${roleInfo.name}</p>
                             ${changed ? `<p class="original-role">Originally: ${originalRoleInfo.name}</p>` : ''}
@@ -1519,8 +1530,10 @@ document.addEventListener('DOMContentLoaded', function () {
                         ${centerCards.map((card, index) => {
                             const roleInfo = getRoleInfo(card);
                             return `
-                                <div class="reveal-card ${roleInfo.color}">
-                                    <div class="role-icon"><i class="${roleInfo.icon}"></i></div>
+                                <div class="reveal-card ${roleInfo.team}">
+                                    <div class="role-icon ${roleInfo.color}">
+                                        <i class="${roleInfo.icon}"></i>
+                                    </div>
                                     <h3>Center ${index + 1}</h3>
                                     <p>${roleInfo.name}</p>
                                 </div>
@@ -1534,23 +1547,32 @@ document.addEventListener('DOMContentLoaded', function () {
                 <i class="fas fa-redo"></i> Play Again
             </button>
         `;
-
+    
+        // Add play again button event listener
         document.getElementById('playAgainButton').addEventListener('click', function() {
-            // Disable the button and show feedback
             this.disabled = true;
             this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Waiting for others...';
-            
             socket.emit('playAgain', currentRoom);
-            
-            // Add a waiting message if it doesn't exist
-            if (!document.querySelector('.play-again-waiting')) {
-                const waitingDiv = document.createElement('div');
-                waitingDiv.className = 'play-again-waiting';
-                waitingDiv.innerHTML = '<p>Waiting for other players to ready up...</p>';
-                this.parentNode.insertBefore(waitingDiv, this.nextSibling);
-            }
         });
     });
+    
+    // Helper function to determine if current player won
+    function determineIfPlayerWon(winningTeam, playerRole, wasVotedOut) {
+        const winningTeams = winningTeam.toLowerCase().split(' and ');
+        const playerTeam = getRoleInfo(playerRole).team;
+        
+        // Special case for Tanner/Apprentice Tanner
+        if (playerRole === 'tanner' || playerRole === 'apprentice-tanner') {
+            return wasVotedOut || winningTeams.includes('tanner');
+        }
+        
+        // For other roles
+        return winningTeams.some(team => 
+            team.includes(playerTeam) || 
+            (team === 'werewolves' && playerTeam === 'minion') ||
+            (team === 'werewolves' && playerTeam === 'squire')
+        );
+    }
 
     socket.on('playAgainUpdate', ({ playersReady, totalPlayers, playersLeft }) => {
         const button = document.getElementById('playAgainButton');
