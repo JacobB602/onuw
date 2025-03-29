@@ -1242,6 +1242,68 @@
         .role-order-item:nth-child(5) { animation-delay: 0.5s; }
         .role-order-item:nth-child(6) { animation-delay: 0.6s; }
         /* Add more if needed */
+        /* Team-based styling for role order */
+        .role-order-item.werewolf {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .role-order-item.villager {
+            border-left: 4px solid var(--accent-blue);
+            background-color: rgba(69, 123, 157, 0.1);
+        }
+
+        .role-order-item.minion {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .role-order-item.tanner {
+            border-left: 4px solid var(--accent-gold);
+            background-color: rgba(255, 209, 102, 0.1);
+        }
+
+        .role-order-item.squire {
+            border-left: 4px solid var(--accent-red);
+            background-color: rgba(230, 57, 70, 0.1);
+        }
+
+        .role-order-icon.evil {
+            background-color: rgba(230, 57, 70, 0.2);
+            color: var(--accent-red);
+        }
+
+        .role-order-icon.good {
+            background-color: rgba(69, 123, 157, 0.2);
+            color: var(--accent-blue);
+        }
+
+        .role-order-icon.neutral {
+            background-color: rgba(255, 209, 102, 0.2);
+            color: var(--accent-gold);
+        }
+
+        .role-order-team {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 0.25rem;
+            opacity: 0.8;
+        }
+
+        /* Update existing role order styles */
+        .role-order-item {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .role-order-item:hover {
+            transform: translateX(5px);
+            box-shadow: var(--shadow-sm);
+        }
+
     </style>
 </head>
 <body>

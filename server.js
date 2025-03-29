@@ -644,18 +644,15 @@ io.on('connection', (socket) => {
         const room = rooms[roomCode];
         if (!room) return;
         
-        // Get the actual role order used in the game
-        const roleOrder = room.gameRoleTurnOrder.filter(role => {
-            const hasPlayer = room.players.some(p => room.startingRoles[p.id] === role);
-            const isCenter = ['center1', 'center2', 'center3'].includes(role);
-            return hasPlayer || isCenter;
-        });
-    
+        // Get all roles from the turn order (don't filter)
+        const roleOrder = [...room.gameRoleTurnOrder];
+        
         console.log('Sending role order:', roleOrder); // Debug log
         
         const duration = Math.min(room.players.length * 60, 300);
         io.to(roomCode).emit('startDayPhase', roleOrder);
         
+        // Rest of the function remains the same...
         // Calculate initial time immediately
         let minutes = Math.floor(duration / 60);
         let seconds = duration % 60;

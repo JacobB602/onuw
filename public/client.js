@@ -1390,22 +1390,12 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     socket.on('startDayPhase', (roleOrder) => {
-        console.log('Received role order:', roleOrder); // Debug log
+        console.log('Received role order:', roleOrder);
         
         const miniCard = document.getElementById('miniRoleCard');
         if (miniCard) {
             miniCard.style.display = 'none';
         }
-    
-        // Create basic role info if not found
-        const safeGetRoleInfo = (role) => {
-            const info = getRoleInfo(role);
-            return info || {
-                name: role.replace(/-/g, ' '),
-                icon: 'fas fa-question',
-                color: 'neutral'
-            };
-        };
     
         gameScreenElement.innerHTML = `
             <div class="phase-header">
@@ -1417,13 +1407,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <h3><i class="fas fa-moon"></i> Night Role Order</h3>
                     <div class="role-order-list">
                         ${roleOrder.map(role => {
-                            const roleInfo = safeGetRoleInfo(role);
+                            const roleInfo = getRoleInfo(role);
                             return `
-                            <div class="role-order-item">
-                                <div class="role-order-icon">
+                            <div class="role-order-item ${roleInfo.team}">
+                                <div class="role-order-icon ${roleInfo.color}">
                                     <i class="${roleInfo.icon}"></i>
                                 </div>
                                 <div class="role-order-name">${roleInfo.name}</div>
+                                <div class="role-order-team">${roleInfo.team.toUpperCase()}</div>
                             </div>`;
                         }).join('')}
                     </div>
@@ -1436,13 +1427,10 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
         `;
     
-        // Add skip button event listener with null check
-        const skipButton = document.getElementById('skipToVoteButton');
-        if (skipButton) {
-            skipButton.addEventListener('click', () => {
-                socket.emit('requestSkipToVote', { roomCode: currentRoom });
-            });
-        }
+        // Add skip button event listener
+        document.getElementById('skipToVoteButton')?.addEventListener('click', () => {
+            socket.emit('requestSkipToVote', { roomCode: currentRoom });
+        });
     });
 
     socket.on('skipVoteUpdate', ({ playersVoted, totalPlayers }) => {
